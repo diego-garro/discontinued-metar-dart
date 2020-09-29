@@ -1,7 +1,6 @@
 A library for Dart developers.
 
-Created from templates made available by Stagehand under a BSD-style
-[license](https://github.com/dart-lang/stagehand/blob/master/LICENSE).
+Inspired from python-metar for parse METAR data in Python Language
 
 ## Usage
 
@@ -11,7 +10,9 @@ A simple usage example:
 import 'package:metar/metar.dart';
 
 main() {
-  var awesome = new Awesome();
+  var metar = new Metar(metarcode);
+
+  print(metar.getCode());
 }
 ```
 
@@ -19,4 +20,4 @@ main() {
 
 Please file feature requests and bugs at the [issue tracker][tracker].
 
-[tracker]: http://example.com/issues/replaceme
+[tracker]: https://github.com/diegogarromolina/metart/issues
