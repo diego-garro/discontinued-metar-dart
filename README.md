@@ -10,6 +10,7 @@ A simple usage example:
 import 'package:metar/metar.dart';
 
 main() {
+  String metarcode = 'METAR MROC 071200Z 10018KT 3000 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
   var metar = new Metar(metarcode);
 
   print(metar.getCode());
