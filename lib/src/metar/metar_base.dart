@@ -79,4 +79,31 @@ class Metar {
   List<String> _remarks;
   List<String> _unparsedGroups;
   List<String> _unparsedRemarks;
+  int _month;
+  int _year;
+  DateTime _now;
+
+  Metar(String metarcode, {int utcMonth, int utcYear}) {
+    _code =
+        metarcode.trim().replaceAll(RegExp(r'\s+'), ' ').replaceFirst('=', '');
+
+    _now = DateTime.now();
+
+    if (utcMonth != null) {
+      _month = utcMonth;
+    } else {
+      _month = _now.month;
+    }
+
+    if (utcYear != null) {
+      _year = utcYear;
+    } else {
+      _year = _now.year;
+    }
+  }
+
+  // Getters
+  int get month => _month;
+  int get year => _year;
+  String get code => _code;
 }
