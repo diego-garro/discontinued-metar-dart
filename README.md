@@ -1,6 +1,6 @@
 A library for Dart developers.
 
-Inspired from python-metar for parse METAR data in Python Language
+Inspired from python-metar to parse METAR data in Python Language
 
 ## Usage
 
