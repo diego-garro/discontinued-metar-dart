@@ -84,6 +84,10 @@ class Metar {
   DateTime _now;
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
+    if (metarcode == '' || metarcode == null) {
+      throw ParserError('metarcode must be not null or empty string.');
+    }
+
     _code =
         metarcode.trim().replaceAll(RegExp(r'\s+'), ' ').replaceFirst('=', '');
 
