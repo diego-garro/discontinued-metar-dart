@@ -13,7 +13,9 @@
 // });
 
 import 'package:tuple/tuple.dart';
+import 'package:simple_logger/simple_logger.dart';
 
+import 'package:metar/src/metar/reg_exp.dart';
 import 'package:metar/src/units/angle.dart';
 import 'package:metar/src/units/length.dart';
 import 'package:metar/src/units/pressure.dart';
@@ -34,9 +36,11 @@ class ParserError implements Exception {
 }
 
 class Metar {
+  final logger = SimpleLogger();
   String _code;
+  List<String> _codeList;
   String _type = 'METAR';
-  String _correction;
+  bool _correction = false;
   String _mode = 'AUTO';
   String _stationID;
   DateTime _time;
@@ -82,14 +86,23 @@ class Metar {
   int _month;
   int _year;
   DateTime _now;
+  String errorMessage;
+  Map<String, dynamic> metarMap;
+  final regex = METAR_REGEX();
+  List<List> _handlers;
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
+    logger.setLevel(Level.INFO);
+
     if (metarcode == '' || metarcode == null) {
-      throw ParserError('metarcode must be not null or empty string.');
+      errorMessage = 'metarcode must be not null or empty string.';
+      logger.info(errorMessage);
+      throw ParserError(errorMessage);
     }
 
     _code =
-        metarcode.trim().replaceAll(RegExp(r'\s+'), ' ').replaceFirst('=', '');
+        metarcode.trim().replaceAll(RegExp(r'\s+'), ' ').replaceAll('=', '');
+    _codeList = _code.split(' ');
 
     _now = DateTime.now();
 
@@ -104,10 +117,76 @@ class Metar {
     } else {
       _year = _now.year;
     }
+
+    _createHandlersListAndParse();
+  }
+
+  // Handlers for groups
+  void _handleType(String group) {
+    /*
+    Parse the report type group
+
+    The following attributes are set
+      _type    [String]
+    */
+    _type = group;
+  }
+
+  void _handleCorrection(String group) {
+    /*
+    Parse the correction group.
+
+    The following attributes are set
+      _correction   [bool]
+    */
+    if (group != null) {
+      _correction = true;
+    }
+  }
+
+  void _handleTime(String group) {
+    /*
+    Parse the observation-time group.
+
+    The following attributes are set:
+      _time    [DateTime]
+      day      [int]
+      hour     [int]
+      min      [int]
+    */
+    final day = int.parse(group.substring(0, 2));
+    final hour = int.parse(group.substring(2, 4));
+    final min = int.parse(group.substring(4, 6));
+
+    _time = DateTime(_year, _month, day, hour, min);
+  }
+
+  void _createHandlersListAndParse() {
+    _handlers = [
+      [regex.TYPE_RE.hasMatch, _handleType],
+      [regex.TIME_RE.hasMatch, _handleTime],
+      [regex.COR_RE.hasMatch, _handleCorrection],
+    ];
+
+    _codeList.forEach((group) {
+      for (var handler in _handlers) {
+        if (handler[0](group)) {
+          handler[1](group);
+          break;
+        }
+        errorMessage = 'failed while processing "$group". Code: $_code.';
+        logger.info(errorMessage);
+        throw ParserError(errorMessage);
+      }
+    });
   }
 
   // Getters
   int get month => _month;
   int get year => _year;
   String get code => _code;
+  List<String> get codeList => _codeList;
+  String get type => _type;
+  DateTime get time => _time;
+  bool get correction => _correction;
 }
