@@ -1,26 +1,46 @@
-// import 'package:path/path.dart' show dirname;
-// import 'dart:io';
-// import 'dart:convert';
-
-// var dirName = Platform.script.path;
-// var myFile = File(dirname(dirName) + '/stations.csv');
-// myFile.readAsString().then((String contents) {
-//   print(contents);
-// });
-
-// myFile.openRead().transform(utf8.decoder).forEach((line) {
-//   print('line: $line');
-// });
+import 'package:path/path.dart' show dirname;
+import 'dart:io';
+import 'dart:convert';
 
 import 'package:tuple/tuple.dart';
 import 'package:simple_logger/simple_logger.dart';
 
+import 'package:metar/src/metar/stations.dart';
 import 'package:metar/src/metar/reg_exp.dart';
 import 'package:metar/src/units/angle.dart';
 import 'package:metar/src/units/length.dart';
 import 'package:metar/src/units/pressure.dart';
 import 'package:metar/src/units/speed.dart';
 import 'package:metar/src/units/temperature.dart';
+
+Future<Station> _getStationFromFile(String stationCode) async {
+  var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
+  var myFile = File.fromUri(dirName);
+  var text =
+      await myFile.openRead().transform(utf8.decoder).transform(LineSplitter());
+  var linesList = await text.toList();
+  List<String> stationAttributes;
+  for (var line in linesList) {
+    stationAttributes = line.split(',');
+    if (stationAttributes[1] == stationCode) {
+      print('From the function: $stationCode');
+      print(line);
+      print('stationattributes: $stationAttributes');
+      break;
+    }
+  }
+
+  return Station(
+    stationAttributes[0].trim(),
+    stationAttributes[1],
+    stationAttributes[2],
+    stationAttributes[3],
+    stationAttributes[4],
+    stationAttributes[5],
+    stationAttributes[6],
+    stationAttributes[7],
+  );
+}
 
 class ParserError implements Exception {
   String _message = 'ParserError: ';
@@ -43,6 +63,7 @@ class Metar {
   bool _correction = false;
   String _mode = 'AUTO';
   String _stationID;
+  Station _station;
   DateTime _time;
   int _cycle;
   Angle _windDir;
@@ -132,6 +153,21 @@ class Metar {
     _type = group;
   }
 
+  void _handleStation(String group) async {
+    /*
+    Parse the station id group
+
+    The following attributes are set
+      _stationID [String]   
+      _station   [Station]
+    */
+    _stationID = group;
+    _station = await _getStationFromFile(_stationID);
+    print(_station);
+    print('Nombre de la estación: ${_station.name}');
+    print('Posición: ${_station.longitude.inRadians}');
+  }
+
   void _handleCorrection(String group) {
     /*
     Parse the correction group.
@@ -163,20 +199,26 @@ class Metar {
 
   void _createHandlersListAndParse() {
     _handlers = [
-      [regex.TYPE_RE.hasMatch, _handleType],
-      [regex.TIME_RE.hasMatch, _handleTime],
-      [regex.COR_RE.hasMatch, _handleCorrection],
+      [regex.TYPE_RE, _handleType, false],
+      [regex.STATION_RE, _handleStation, false],
+      [regex.TIME_RE, _handleTime, false],
+      [regex.COR_RE, _handleCorrection, false],
     ];
 
     _codeList.forEach((group) {
       for (var handler in _handlers) {
-        if (handler[0](group)) {
+        logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
+        print(handler[0].stringMatch(group));
+        if (handler[0].hasMatch(group) && !handler[2]) {
           handler[1](group);
+          handler[2] = true;
           break;
         }
-        errorMessage = 'failed while processing "$group". Code: $_code.';
-        logger.info(errorMessage);
-        throw ParserError(errorMessage);
+        // if (_handlers.indexOf(handler) == _handlers.length - 1) {
+        //   errorMessage = 'failed while processing "$group". Code: $_code.';
+        //   logger.info(errorMessage);
+        //   throw ParserError(errorMessage);
+        // }
       }
     });
   }
@@ -189,4 +231,6 @@ class Metar {
   String get type => _type;
   DateTime get time => _time;
   bool get correction => _correction;
+  String get stationID => _stationID;
+  Station get station => _station;
 }

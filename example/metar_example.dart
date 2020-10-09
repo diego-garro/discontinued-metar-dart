@@ -1,20 +1,28 @@
 import 'dart:convert';
+import 'dart:io';
 
 import '../lib/metar.dart';
 
 void main() {
   var metarcode =
-      'METAR MROC 071200Zm COR 10018KT 3000 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
+      'METAR MROC 071200Z COR 10018KT 3000 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
   var metar = Metar(metarcode);
   // var metar = Metar('');
 
-  print(metar.code);
-  print(metar.codeList);
-  print(metar.month);
-  print(metar.year);
-  print(metar.type);
-  print(metar.time);
-  print(metar.correction);
+  print('Code: ${metar.code}');
+  print('CodeList: ${metar.codeList}');
+  print('Month: ${metar.month}');
+  print('Year: ${metar.year}');
+  print('Type: ${metar.type}');
+  print('Time: ${metar.time}');
+  print('Correction: ${metar.correction}');
+  print('StationID: ${metar.stationID}');
+  print('Station: ${metar.station}');
+
+  // print(Platform.script);
+  // print(
+  //     Platform.script.resolve('../packages/metart/lib/src/metar/stations.csv'));
+  // print(Platform.script.toFilePath());
 
   // String str1 = 'Sara is 26 years old. Maria is 18 while Masood is 8.';
 

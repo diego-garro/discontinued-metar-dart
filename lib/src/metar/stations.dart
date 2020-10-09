@@ -1,3 +1,4 @@
+import 'package:metar/src/units/angle.dart';
 import 'package:metar/src/units/position.dart';
 
 class Station {
@@ -42,9 +43,11 @@ class Station {
     return _synop;
   }
 
-  double get latitude => double.parse(_lat);
-  double get longitude => double.parse(_long);
+  // double get latitude => double.parse(_lat);
+  // double get longitude => double.parse(_long);
   int get elevation => int.parse(_elev);
   String get country => _country;
   Position get position => _position;
+  Angle get longitude => _position.longitude;
+  Angle get latitude => _position.latitude;
 }
