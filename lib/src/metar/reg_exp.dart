@@ -14,7 +14,9 @@ class METAR_REGEX {
   RegExp MODIFIER_RE = RegExp(r'^(AUTO|FINO|NIL|TEST|CORR?|RTD|CC[A-G])');
 
   RegExp WIND_RE = RegExp(
-      r'^([\dO]{3}|[0O]|///|MMM|VRB)([\dO]{2,3}|[/M]{2,3})(G(\d{1,3}|[/M{1,3}]))?(KTS?|LT|K|T|KMH|MPS)?(\s+(\d{3})V(\d{3}))?');
+      r'^([\dO]{3}|///|MMM|VRB)([\dO]{2}|[/M]{2})(G(\d{2}|[/M{2}]))?(KTS?|KT|MPS)');
+
+  RegExp WINDVARIATION_RE = RegExp(r'((\d{3})V(\d{3}))');
 
   RegExp VISIBILITY_RE = RegExp(
       r'^(((M|P)?\d{4}|\//\//)([NSEW][EW]? | NVD)? |((M|P)?(\d+|\d{2}?/\d{2}?|\d+\s+\d/\d))(SM|KM|M|U) | CAVOK )');

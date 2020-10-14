@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:tuple/tuple.dart';
 import 'package:simple_logger/simple_logger.dart';
 
+import 'package:metar/src/units/direction.dart';
 import 'package:metar/src/metar/stations.dart';
 import 'package:metar/src/metar/reg_exp.dart';
 import 'package:metar/src/units/angle.dart';
@@ -16,16 +17,18 @@ import 'package:metar/src/units/temperature.dart';
 Future<Station> _getStationFromFile(String stationCode) async {
   var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
   var myFile = File.fromUri(dirName);
-  var text =
-      await myFile.openRead().transform(utf8.decoder).transform(LineSplitter());
-  var linesList = await text.toList();
+  var linesList = await myFile
+      .openRead()
+      .transform(utf8.decoder)
+      .transform(LineSplitter())
+      .toList();
   List<String> stationAttributes;
   for (var line in linesList) {
     stationAttributes = line.split(',');
     if (stationAttributes[1] == stationCode) {
-      print('From the function: $stationCode');
-      print(line);
-      print('stationattributes: $stationAttributes');
+      // print('From the function: $stationCode');
+      // print(line);
+      // print('stationattributes: $stationAttributes');
       break;
     }
   }
@@ -61,16 +64,16 @@ class Metar {
   List<String> _codeList;
   String _type = 'METAR';
   bool _correction = false;
-  String _mode = 'AUTO';
+  String _mod = 'AUTO';
   String _stationID;
-  Station _station;
+  Future<Station> _station;
   DateTime _time;
   int _cycle;
-  Angle _windDir;
+  Direction _windDir;
   Speed _windSpeed;
   Speed _windGust;
-  Angle _windDirFrom;
-  Angle _windDirTo;
+  Direction _windDirFrom;
+  Direction _windDirTo;
   Length _vis;
   Length _maxVis;
   Angle _maxVisDir;
@@ -153,7 +156,7 @@ class Metar {
     _type = group;
   }
 
-  void _handleStation(String group) async {
+  void _handleStation(String group) {
     /*
     Parse the station id group
 
@@ -162,10 +165,10 @@ class Metar {
       _station   [Station]
     */
     _stationID = group;
-    _station = await _getStationFromFile(_stationID);
-    print(_station);
-    print('Nombre de la estación: ${_station.name}');
-    print('Posición: ${_station.longitude.inRadians}');
+    _station = _getStationFromFile(_stationID);
+    // print(_station);
+    // print('Nombre de la estación: ${_station.name}');
+    // print('Posición: ${_station.longitude.inRadians}');
   }
 
   void _handleCorrection(String group) {
@@ -197,12 +200,78 @@ class Metar {
     _time = DateTime(_year, _month, day, hour, min);
   }
 
+  void _handleModifier(String group) {
+    /*
+    Parse the report-modifier group
+
+    The following attributes are set
+      _mod     [String]
+    */
+    if (group == 'CORR') {
+      _mod = 'COR';
+    } else if (group == 'NIL' || group == 'FINO') {
+      _mod = 'NO DATA';
+    } else {
+      _mod = group;
+    }
+  }
+
+  void _handleWind(String group) {
+    /*
+    Parse the wind group
+
+    The following attributes are set
+      _windDir     [Direction]
+      _windSpeed   [Speed]
+      _windGust    [Speed]
+    */
+    String units;
+    group.replaceAll('O', '0');
+    var windDir = group.substring(0, 3);
+    var windSpeed = group.substring(3, 5);
+    if (group.length == 7) {
+      units = group.substring(5);
+    } else {
+      units = group.substring(8);
+    }
+    if (RegExp(r'^\d+$').hasMatch(windDir)) {
+      _windDir = Direction.fromDegrees(value: windDir);
+    } else {
+      _windDir = Direction.fromUndefined(value: windDir);
+    }
+    if (RegExp(r'^\d+$').hasMatch(windSpeed)) {
+      if (units == 'KT' || units == 'KTS') {
+        _windSpeed = Speed.fromKnot(value: double.parse(windSpeed));
+      } else {
+        _windSpeed = Speed.fromMeterPerSecond(value: double.parse(windSpeed));
+      }
+    }
+    if (group.contains('G')) {
+      _windGust = Speed.fromKnot(value: double.parse(group.substring(6, 8)));
+    }
+  }
+
+  void _handleWindVariation(String group) {
+    /*
+    Parse the wind variation
+
+    The following attributes are set
+      _windDirFrom    [Direction]
+      _windDirTo      [Direction]
+    */
+    _windDirFrom = Direction.fromDegrees(value: group.substring(0, 3));
+    _windDirTo = Direction.fromDegrees(value: group.substring(4));
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
       [regex.STATION_RE, _handleStation, false],
       [regex.TIME_RE, _handleTime, false],
       [regex.COR_RE, _handleCorrection, false],
+      [regex.MODIFIER_RE, _handleModifier, false],
+      [regex.WIND_RE, _handleWind, false],
+      [regex.WINDVARIATION_RE, _handleWindVariation, false],
     ];
 
     _codeList.forEach((group) {
@@ -232,5 +301,11 @@ class Metar {
   DateTime get time => _time;
   bool get correction => _correction;
   String get stationID => _stationID;
-  Station get station => _station;
+  Future<Station> get station async => await _station;
+  String get modifier => _mod;
+  Direction get windDir => _windDir;
+  double get windSpeed => _windSpeed.inKnot;
+  double get windGust => _windGust.inKnot;
+  Direction get windDirFrom => _windDirFrom;
+  Direction get windDirTo => _windDirTo;
 }

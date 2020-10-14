@@ -16,6 +16,8 @@ class Angle implements Comparable<Angle> {
   static const double _grad_to_degree = 0.9;
   static const double _degree_to_grad = 1.11111111;
 
+  Angle() : _angle = null;
+
   Angle.fromDegrees({double value = 0.0}) : _angle = value;
   Angle.fromRadians({double value = 0.0}) : _angle = value * _rad_to_degree;
   Angle.fromGradian({double value = 0.0}) : _angle = _grad_to_degree * value;
