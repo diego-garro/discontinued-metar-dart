@@ -5,7 +5,7 @@ import '../lib/metar.dart';
 
 void main() async {
   var metarcode =
-      'METAR MROC 071200Z COR 10018G28KT 250V110 3000 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
+      'METAR MROC 071200Z COR P49MPS 250V110 M6SM R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
   // var metarcode = 'NFNM 122100Z 13025G35KT 9999 SCT025 28/27 Q1014';
   var metar = Metar(metarcode);
   // var metar = Metar('');
@@ -22,13 +22,13 @@ void main() async {
   print('Correction: ${metar.correction}');
   print('StationID: ${metar.stationID}');
   print('Modifier: ${metar.modifier}');
-  print('Wind direction: ${metar.windDir.directionInDegrees} degrees');
-  print('Wind direction: ${metar.windDir.direction}');
-  print('Wind speed: ${metar.windSpeed} knots');
-  print('Wind gust: ${metar.windGust}');
+  // print('Wind direction: ${metar.windDir.directionInDegrees} degrees');
+  // print('Wind direction: ${metar.windDir.direction}');
+  print('Wind speed: ${metar.windSpeed.inMeterPerSecond} knots');
+  // print('Wind gust: ${metar.windGust}');
   print('Wind variation from: ${metar.windDirFrom.directionInDegrees}');
   print('Wind variation to: ${metar.windDirTo.directionInDegrees}');
-  // print('Station country: ${metar.stationCountry}');
+  print('Visibility: ${metar.visibility.inKilometers}');
 
   // print(Platform.script);
   // print(

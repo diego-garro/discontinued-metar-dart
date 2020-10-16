@@ -225,29 +225,38 @@ class Metar {
       _windSpeed   [Speed]
       _windGust    [Speed]
     */
-    String units;
     group.replaceAll('O', '0');
-    var windDir = group.substring(0, 3);
-    var windSpeed = group.substring(3, 5);
-    if (group.length == 7) {
+    String units;
+    String windDir;
+    String windSpeed;
+    String windGust;
+    if (group.length < 7 && group.startsWith('P')) {
+      units = group.substring(3);
+      windSpeed = group.substring(1, 3);
+    } else if (group.length == 7) {
       units = group.substring(5);
+      windDir = group.substring(0, 3);
+      windSpeed = group.substring(3, 5);
     } else {
       units = group.substring(8);
+      windDir = group.substring(0, 3);
+      windSpeed = group.substring(3, 5);
+      windGust = group.substring(6, 8);
     }
-    if (RegExp(r'^\d+$').hasMatch(windDir)) {
+    if (windDir != null && RegExp(r'^\d+$').hasMatch(windDir)) {
       _windDir = Direction.fromDegrees(value: windDir);
     } else {
       _windDir = Direction.fromUndefined(value: windDir);
     }
-    if (RegExp(r'^\d+$').hasMatch(windSpeed)) {
+    if (windSpeed != null && RegExp(r'^\d+$').hasMatch(windSpeed)) {
       if (units == 'KT' || units == 'KTS') {
         _windSpeed = Speed.fromKnot(value: double.parse(windSpeed));
       } else {
         _windSpeed = Speed.fromMeterPerSecond(value: double.parse(windSpeed));
       }
     }
-    if (group.contains('G')) {
-      _windGust = Speed.fromKnot(value: double.parse(group.substring(6, 8)));
+    if (windGust != null && group.contains('G')) {
+      _windGust = Speed.fromKnot(value: double.parse(windGust));
     }
   }
 
@@ -263,6 +272,40 @@ class Metar {
     _windDirTo = Direction.fromDegrees(value: group.substring(4));
   }
 
+  void _handleVisibility(String group) {
+    /**
+    Parse the visibility group
+
+    The following attributes are set
+      _vis    [Length]
+      _maxVis [Length]
+    */
+    String units;
+    String vis;
+    if ((group.startsWith('P') || group.startsWith('M')) &&
+        group.endsWith('SM')) {
+      units = 'SM';
+      vis = group.replaceFirst(RegExp(r'P|M'), '').replaceFirst('SM', '');
+    } else if (group.startsWith(RegExp(r'\d')) && group.endsWith('SM')) {
+      units = 'SM';
+      vis = group.replaceFirst('SM', '');
+    } else {
+      units = 'M';
+      vis = group;
+    }
+    if (units != null) {
+      if (units == 'SM') {
+        _vis = Length.fromMiles(value: double.parse(vis));
+      } else {
+        if (vis == '9999') {
+          _vis = Length.fromMeters(value: double.parse('10000'));
+        } else {
+          _vis = Length.fromMeters(value: double.parse(vis));
+        }
+      }
+    }
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -272,6 +315,7 @@ class Metar {
       [regex.MODIFIER_RE, _handleModifier, false],
       [regex.WIND_RE, _handleWind, false],
       [regex.WINDVARIATION_RE, _handleWindVariation, false],
+      [regex.VISIBILITY_RE, _handleVisibility, false],
     ];
 
     _codeList.forEach((group) {
@@ -304,8 +348,9 @@ class Metar {
   Future<Station> get station async => await _station;
   String get modifier => _mod;
   Direction get windDir => _windDir;
-  double get windSpeed => _windSpeed.inKnot;
-  double get windGust => _windGust.inKnot;
+  Speed get windSpeed => _windSpeed;
+  Speed get windGust => _windGust;
   Direction get windDirFrom => _windDirFrom;
   Direction get windDirTo => _windDirTo;
+  Length get visibility => _vis;
 }

@@ -3,23 +3,23 @@
 class METAR_REGEX {
   RegExp MISSING_RE = RegExp(r'^[M/]+$');
 
-  RegExp TYPE_RE = RegExp(r'^(METAR|SPECI)');
+  RegExp TYPE_RE = RegExp(r'^(METAR|SPECI)$');
 
-  RegExp COR_RE = RegExp(r'^(COR)');
+  RegExp COR_RE = RegExp(r'^(COR)$');
 
-  RegExp STATION_RE = RegExp(r'^([A-Z][A-Z0-9]{3})');
+  RegExp STATION_RE = RegExp(r'^([A-Z][A-Z0-9]{3})$');
 
-  RegExp TIME_RE = RegExp(r'^(\d{6})Z?');
+  RegExp TIME_RE = RegExp(r'^(\d{6})Z?$');
 
-  RegExp MODIFIER_RE = RegExp(r'^(AUTO|FINO|NIL|TEST|CORR?|RTD|CC[A-G])');
+  RegExp MODIFIER_RE = RegExp(r'^(AUTO|FINO|NIL|TEST|CORR?|RTD|CC[A-G])$');
 
   RegExp WIND_RE = RegExp(
-      r'^([\dO]{3}|///|MMM|VRB)([\dO]{2}|[/M]{2})(G(\d{2}|[/M{2}]))?(KTS?|KT|MPS)');
+      r'^([\dO]{3}|///|MMM|VRB|P)([\dO]{2}|[/M]{2})(G(\d{2}|[/M{2}]))?(KTS?|KT|MPS)$');
 
-  RegExp WINDVARIATION_RE = RegExp(r'((\d{3})V(\d{3}))');
+  RegExp WINDVARIATION_RE = RegExp(r'((\d{3})V(\d{3}))$');
 
   RegExp VISIBILITY_RE = RegExp(
-      r'^(((M|P)?\d{4}|\//\//)([NSEW][EW]? | NVD)? |((M|P)?(\d+|\d{2}?/\d{2}?|\d+\s+\d/\d))(SM|KM|M|U) | CAVOK )');
+      r'^((\d{4}|\//\//)|((M|P)?(\d|\d{2}?/\d{2}?))(SM|KM|M|U))|(CAVOK)$');
 
   RegExp RUNWAY_RE =
       RegExp(r'^(RVRNO | R(\d{2}(RR?|LL?|C)?)/(V((M|P)?\d{4}))?(FT)?[/NDU]*)');
