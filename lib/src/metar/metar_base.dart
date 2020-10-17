@@ -75,8 +75,9 @@ class Metar {
   Direction _windDirFrom;
   Direction _windDirTo;
   Length _vis;
+  Length _optionalVis;
   Length _maxVis;
-  Angle _maxVisDir;
+  Direction _maxVisDir;
   Temperature _temp;
   Temperature _dewpt;
   Pressure _press;
@@ -272,8 +273,18 @@ class Metar {
     _windDirTo = Direction.fromDegrees(value: group.substring(4));
   }
 
+  void _handleOptionalVisibility(String group) {
+    /*
+    Parse the optional visibility if units are SM
+
+    The following attributes are set
+      _optionalVisibility   [Length]
+    */
+    _optionalVis = Length.fromMiles(value: double.parse(group));
+  }
+
   void _handleVisibility(String group) {
-    /**
+    /*
     Parse the visibility group
 
     The following attributes are set
@@ -289,13 +300,22 @@ class Metar {
     } else if (group.startsWith(RegExp(r'\d')) && group.endsWith('SM')) {
       units = 'SM';
       vis = group.replaceFirst('SM', '');
+      if (vis.contains('/')) {
+        var items = vis.split('/');
+        vis = '${int.parse(items[0]) / int.parse(items[1])}';
+      }
     } else {
       units = 'M';
       vis = group;
     }
     if (units != null) {
       if (units == 'SM') {
-        _vis = Length.fromMiles(value: double.parse(vis));
+        if (_optionalVis != null) {
+          _vis =
+              Length.fromMiles(value: _optionalVis.inMiles + double.parse(vis));
+        } else {
+          _vis = Length.fromMiles(value: double.parse(vis));
+        }
       } else {
         if (vis == '9999') {
           _vis = Length.fromMeters(value: double.parse('10000'));
@@ -304,6 +324,18 @@ class Metar {
         }
       }
     }
+  }
+
+  void _handleMaxVis(String group) {
+    /*
+    Parse the max vis group
+
+    The following attributes are set
+      _maxVis     [Length]
+      _maxVisDir  [Direction]
+    */
+    _maxVis = Length.fromMeters(value: double.parse(group.substring(0, 4)));
+    _maxVisDir = Direction.fromUndefined(value: group.substring(4));
   }
 
   void _createHandlersListAndParse() {
@@ -315,6 +347,7 @@ class Metar {
       [regex.MODIFIER_RE, _handleModifier, false],
       [regex.WIND_RE, _handleWind, false],
       [regex.WINDVARIATION_RE, _handleWindVariation, false],
+      [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
       [regex.VISIBILITY_RE, _handleVisibility, false],
     ];
 

@@ -18,8 +18,12 @@ class METAR_REGEX {
 
   RegExp WINDVARIATION_RE = RegExp(r'((\d{3})V(\d{3}))$');
 
+  RegExp OPTIONALVIS_RE = RegExp(r'^\d$');
+
   RegExp VISIBILITY_RE = RegExp(
-      r'^((\d{4}|\//\//)|((M|P)?(\d|\d{2}?/\d{2}?))(SM|KM|M|U))|(CAVOK)$');
+      r'^((\d{4}|\//\//)|((M|P)?(\d|\d{1,2}?/\d{1,2}?))(SM|KM|M|U))|(CAVOK)$');
+
+  RegExp SECVISIBILITY_RE = RegExp(r'^(\d{4})([NSEW]([EW])?)$');
 
   RegExp RUNWAY_RE =
       RegExp(r'^(RVRNO | R(\d{2}(RR?|LL?|C)?)/(V((M|P)?\d{4}))?(FT)?[/NDU]*)');
@@ -49,7 +53,7 @@ class METAR_REGEX {
 
   RegExp TRENDTIME_RE = RegExp(r'^(FM|TL|AT)(\d{2})(\d{2}\s+)');
 
-  RegExp REMARK_RE = RegExp(r'^(RMKS?|NOSPECI|NOSIG)');
+  RegExp REMARK_RE = RegExp(r'^((RMK(S)?)|NOSPECI|NOSIG)');
 
 // Regular expressions for remark groups
   RegExp AUTO_RE = RegExp(r'^AO(\d)\s+');

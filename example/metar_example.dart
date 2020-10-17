@@ -4,9 +4,11 @@ import 'dart:io';
 import '../lib/metar.dart';
 
 void main() async {
-  var metarcode =
-      'METAR MROC 071200Z COR P49MPS 250V110 M6SM R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
-  // var metarcode = 'NFNM 122100Z 13025G35KT 9999 SCT025 28/27 Q1014';
+  // var metarcode =
+  //     'METAR MROC 071200Z COR P49MPS 250V110 0500 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
+  var metarcode = 'NFNM 122100Z 13025G35KT 9999 270V100 SCT025 28/27 Q1014';
+  // var metarcode =
+  //     'CYQU 161518Z 05013KT 1 1/4SM -SN VV009 M02/M03 A2993 RMK SN8 SLP168';
   var metar = Metar(metarcode);
   // var metar = Metar('');
   var metarStation = await metar.station;
@@ -23,12 +25,15 @@ void main() async {
   print('StationID: ${metar.stationID}');
   print('Modifier: ${metar.modifier}');
   // print('Wind direction: ${metar.windDir.directionInDegrees} degrees');
-  // print('Wind direction: ${metar.windDir.direction}');
+  print('Wind direction: ${metar.windDir.directionInDegrees}');
+  print('Wind direction: ${metar.windDir.cardinalPoint}');
   print('Wind speed: ${metar.windSpeed.inMeterPerSecond} knots');
   // print('Wind gust: ${metar.windGust}');
   print('Wind variation from: ${metar.windDirFrom.directionInDegrees}');
+  print('Wind variation from: ${metar.windDirFrom.cardinalPoint}');
   print('Wind variation to: ${metar.windDirTo.directionInDegrees}');
-  print('Visibility: ${metar.visibility.inKilometers}');
+  print('Wind variation to: ${metar.windDirTo.cardinalPoint}');
+  print('Visibility: ${metar.visibility.inMeters}');
 
   // print(Platform.script);
   // print(

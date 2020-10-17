@@ -29,22 +29,51 @@ class Direction {
 
   Direction.fromDegrees({String value = '000'}) {
     _direction = Angle.fromDegrees(value: double.parse(value));
-    _directionStr = '${_direction.inDegrees}';
+    _directionStr = _cardinalPoint(value);
   }
   Direction.fromUndefined({String value = '///'}) {
     if (_compassDirs.keys.toList().contains(value)) {
       _direction = Angle.fromDegrees(value: _compassDirs[value]);
-      _directionStr = '${_direction.inDegrees}';
     } else {
       _direction = Angle.fromDegrees(value: 0.0);
-      _directionStr = value;
     }
+    _directionStr = _cardinalPoint(value);
   }
 
   double get directionInDegrees => _returnValue('degrees');
   double get directionInRadians => _returnValue('radians');
   double get directionInGradians => _returnValue('gradians');
-  String get direction => _directionStr;
+  String get cardinalPoint => _directionStr;
+
+  String _cardinalPoint(String value) {
+    String point;
+    double angle;
+    for (var dir in _compassDirs.keys.toList()) {
+      if (value == dir) {
+        point = value;
+        break;
+      } else if (RegExp(r'^\d{3}$').hasMatch(value)) {
+        angle = double.parse(value);
+        if (angle == _compassDirs[dir]) {
+          point = dir;
+          break;
+        } else if (angle >= 348.75) {
+          point = 'N';
+          break;
+        } else if (angle >= _compassDirs[dir] - 11.25 &&
+            angle < _compassDirs[dir] + 11.25) {
+          point = dir;
+          break;
+        } else {
+          point = 'INVALID ANGLE';
+        }
+      } else {
+        point = 'NO DATA';
+        break;
+      }
+    }
+    return point;
+  }
 
   double _returnValue(String format) {
     if (_directionStr == 'VRB' ||
