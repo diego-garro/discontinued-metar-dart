@@ -69,7 +69,7 @@ class Direction {
         }
       } else {
         point = 'NO DATA';
-        break;
+        continue;
       }
     }
     return point;

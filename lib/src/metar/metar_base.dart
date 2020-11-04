@@ -81,7 +81,7 @@ class Metar {
   Temperature _temp;
   Temperature _dewpt;
   Pressure _press;
-  List<Tuple4> _runway;
+  final _runway = [];
   List<Tuple4> _weather;
   List<Tuple5> _recent;
   List<Tuple3> _sky;
@@ -338,6 +338,61 @@ class Metar {
     _maxVisDir = Direction.fromUndefined(value: group.substring(4));
   }
 
+  void _handleRunway(String group) {
+    /*
+    Parse the runway visual range group
+
+    The following attributes are set
+      _runway   [List<Tuple4>]
+    */
+    // _runway = List(5);
+    var groupList = group.split('/');
+    String units;
+
+    // adding the runway name
+    _runway.add(groupList[0]
+        .substring(1)
+        .replaceFirst('L', ' left')
+        .replaceFirst('R', ' right')
+        .replaceFirst('C', ' center'));
+
+    // adding if the range is out of medition
+    if (groupList[1].contains('P')) {
+      _runway.add('greater than');
+    } else if (groupList[1].contains('M')) {
+      _runway.add('less than');
+    } else {
+      _runway.add('');
+    }
+
+    // adding the range units
+    if (groupList[1].contains('FT')) {
+      units = 'feet';
+    } else {
+      units = 'meters';
+    }
+
+    // adding the range
+    var value = groupList[1]
+        .replaceFirst(RegExp(r'^(M|P)?'), '')
+        .replaceFirst('FT', '')
+        .replaceFirst(RegExp(r'(N|U|D)?$'), '');
+    if (units == 'feet') {
+      _runway.add(Length.fromFeet(value: double.parse(value)));
+    } else {
+      _runway.add(Length.fromMeters(value: double.parse(value)));
+    }
+
+    // adding the trend
+    if (groupList[1].contains('N')) {
+      _runway.add('no change');
+    } else if (groupList[1].contains('U')) {
+      _runway.add('increasing');
+    } else {
+      _runway.add('decreasing');
+    }
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -349,6 +404,8 @@ class Metar {
       [regex.WINDVARIATION_RE, _handleWindVariation, false],
       [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
       [regex.VISIBILITY_RE, _handleVisibility, false],
+      [regex.SECVISIBILITY_RE, _handleMaxVis, false],
+      [regex.RUNWAY_RE, _handleRunway, false]
     ];
 
     _codeList.forEach((group) {
@@ -386,4 +443,7 @@ class Metar {
   Direction get windDirFrom => _windDirFrom;
   Direction get windDirTo => _windDirTo;
   Length get visibility => _vis;
+  Length get maxVisibility => _maxVis;
+  Direction get maxVisibilityDirection => _maxVisDir;
+  List get runway => _runway;
 }
