@@ -45,6 +45,31 @@ Future<Station> _getStationFromFile(String stationCode) async {
   );
 }
 
+String _handleLowHighRunway(String range) {
+  range ??= range = '';
+
+  if (range.contains('P')) {
+    return 'greater than';
+  } else if (range.contains('M')) {
+    return 'less than';
+  } else {
+    return '';
+  }
+}
+
+Length _handleRunwayRange(String range, String units) {
+  range ??= range = '0.0';
+  var value = range
+      .replaceFirst(RegExp(r'^(M|P)?'), '')
+      .replaceFirst('FT', '')
+      .replaceFirst(RegExp(r'(N|U|D)?$'), '');
+  if (units == 'feet') {
+    return Length.fromFeet(value: double.tryParse(value));
+  } else {
+    return Length.fromMeters(value: double.tryParse(value));
+  }
+}
+
 class ParserError implements Exception {
   String _message = 'ParserError: ';
 
@@ -78,11 +103,12 @@ class Metar {
   Length _optionalVis;
   Length _maxVis;
   Direction _maxVisDir;
+  bool _cavok;
   Temperature _temp;
   Temperature _dewpt;
   Pressure _press;
-  final _runway = [];
-  List<Tuple4> _weather;
+  final _runway = <dynamic>[];
+  final _weather = <Tuple5>[];
   List<Tuple5> _recent;
   List<Tuple3> _sky;
   List<String> _windshear;
@@ -147,7 +173,7 @@ class Metar {
   }
 
   // Handlers for groups
-  void _handleType(String group) {
+  void _handleType(String group, {RegExpMatch match}) {
     /*
     Parse the report type group
 
@@ -157,7 +183,7 @@ class Metar {
     _type = group;
   }
 
-  void _handleStation(String group) {
+  void _handleStation(String group, {RegExpMatch match}) {
     /*
     Parse the station id group
 
@@ -172,7 +198,7 @@ class Metar {
     // print('Posición: ${_station.longitude.inRadians}');
   }
 
-  void _handleCorrection(String group) {
+  void _handleCorrection(String group, {RegExpMatch match}) {
     /*
     Parse the correction group.
 
@@ -184,7 +210,7 @@ class Metar {
     }
   }
 
-  void _handleTime(String group) {
+  void _handleTime(String group, {RegExpMatch match}) {
     /*
     Parse the observation-time group.
 
@@ -201,7 +227,7 @@ class Metar {
     _time = DateTime(_year, _month, day, hour, min);
   }
 
-  void _handleModifier(String group) {
+  void _handleModifier(String group, {RegExpMatch match}) {
     /*
     Parse the report-modifier group
 
@@ -217,7 +243,7 @@ class Metar {
     }
   }
 
-  void _handleWind(String group) {
+  void _handleWind(String group, {RegExpMatch match}) {
     /*
     Parse the wind group
 
@@ -227,23 +253,13 @@ class Metar {
       _windGust    [Speed]
     */
     group.replaceAll('O', '0');
-    String units;
-    String windDir;
-    String windSpeed;
-    String windGust;
-    if (group.length < 7 && group.startsWith('P')) {
-      units = group.substring(3);
-      windSpeed = group.substring(1, 3);
-    } else if (group.length == 7) {
-      units = group.substring(5);
-      windDir = group.substring(0, 3);
-      windSpeed = group.substring(3, 5);
-    } else {
-      units = group.substring(8);
-      windDir = group.substring(0, 3);
-      windSpeed = group.substring(3, 5);
-      windGust = group.substring(6, 8);
-    }
+    String units, windDir, windSpeed, windGust;
+
+    units = match.namedGroup('units');
+    windDir = match.namedGroup('dir');
+    windSpeed = match.namedGroup('speed');
+    windGust = match.namedGroup('gust');
+
     if (windDir != null && RegExp(r'^\d+$').hasMatch(windDir)) {
       _windDir = Direction.fromDegrees(value: windDir);
     } else {
@@ -261,7 +277,7 @@ class Metar {
     }
   }
 
-  void _handleWindVariation(String group) {
+  void _handleWindVariation(String group, {RegExpMatch match}) {
     /*
     Parse the wind variation
 
@@ -269,11 +285,11 @@ class Metar {
       _windDirFrom    [Direction]
       _windDirTo      [Direction]
     */
-    _windDirFrom = Direction.fromDegrees(value: group.substring(0, 3));
-    _windDirTo = Direction.fromDegrees(value: group.substring(4));
+    _windDirFrom = Direction.fromDegrees(value: match.namedGroup('from'));
+    _windDirTo = Direction.fromDegrees(value: match.namedGroup('to'));
   }
 
-  void _handleOptionalVisibility(String group) {
+  void _handleOptionalVisibility(String group, {RegExpMatch match}) {
     /*
     Parse the optional visibility if units are SM
 
@@ -283,50 +299,48 @@ class Metar {
     _optionalVis = Length.fromMiles(value: double.parse(group));
   }
 
-  void _handleVisibility(String group) {
+  void _handleVisibility(String group, {RegExpMatch match}) {
     /*
     Parse the visibility group
 
     The following attributes are set
       _vis    [Length]
-      _maxVis [Length]
     */
-    String units;
-    String vis;
-    if ((group.startsWith('P') || group.startsWith('M')) &&
-        group.endsWith('SM')) {
-      units = 'SM';
-      vis = group.replaceFirst(RegExp(r'P|M'), '').replaceFirst('SM', '');
-    } else if (group.startsWith(RegExp(r'\d')) && group.endsWith('SM')) {
-      units = 'SM';
-      vis = group.replaceFirst('SM', '');
-      if (vis.contains('/')) {
-        var items = vis.split('/');
-        vis = '${int.parse(items[0]) / int.parse(items[1])}';
-      }
-    } else {
-      units = 'M';
-      vis = group;
+    String units, vis, extreme, visExtreme, cavok;
+    units = match.namedGroup('units');
+    vis = match.namedGroup('vis');
+    extreme = match.namedGroup('extreme');
+    visExtreme = match.namedGroup('visextreme');
+    cavok = match.namedGroup('cavok');
+
+    if (visExtreme != null && visExtreme.contains('/')) {
+      var items = visExtreme.split('/');
+      vis = '${int.parse(items[0]) / int.parse(items[1])}';
     }
-    if (units != null) {
-      if (units == 'SM') {
-        if (_optionalVis != null) {
-          _vis =
-              Length.fromMiles(value: _optionalVis.inMiles + double.parse(vis));
-        } else {
-          _vis = Length.fromMiles(value: double.parse(vis));
-        }
+
+    (cavok == null) ? _cavok = false : _cavok = true;
+
+    units ??= units = 'M';
+
+    if (units == 'SM') {
+      if (_optionalVis != null) {
+        _vis =
+            Length.fromMiles(value: _optionalVis.inMiles + double.parse(vis));
       } else {
-        if (vis == '9999') {
-          _vis = Length.fromMeters(value: double.parse('10000'));
-        } else {
-          _vis = Length.fromMeters(value: double.parse(vis));
-        }
+        _vis = Length.fromMiles(value: double.parse(vis));
+      }
+    } else if (units == 'KM') {
+      _vis = Length.fromKilometers(value: double.parse(vis));
+    } else {
+      if (vis == '9999' || _cavok) {
+        _vis = Length.fromMeters(value: double.parse('10000'));
+      } else {
+        _vis = Length.fromMeters(value: double.parse(vis));
       }
     }
   }
 
-  void _handleMaxVis(String group) {
+  void _handleMaxVis(String group, {RegExpMatch match}) {
     /*
     Parse the max vis group
 
@@ -334,63 +348,91 @@ class Metar {
       _maxVis     [Length]
       _maxVisDir  [Direction]
     */
-    _maxVis = Length.fromMeters(value: double.parse(group.substring(0, 4)));
-    _maxVisDir = Direction.fromUndefined(value: group.substring(4));
+    _maxVis = Length.fromMeters(value: double.parse(match.namedGroup('vis')));
+    _maxVisDir = Direction.fromUndefined(value: match.namedGroup('dir'));
   }
 
-  void _handleRunway(String group) {
+  void _handleRunway(String group, {RegExpMatch match}) {
     /*
     Parse the runway visual range group
 
     The following attributes are set
-      _runway   [List<Tuple4>]
+      _runway         [List]
+        * name        [String]
+        * rangeUnits  [String]
+        * range       [String]
+        * trend       [String]
     */
+
     // _runway = List(5);
-    var groupList = group.split('/');
-    String units;
+    String name, units, low, high, trend;
+
+    name = match.namedGroup('name');
+    units = match.namedGroup('units');
+    low = match.namedGroup('low');
+    high = match.namedGroup('high');
+    trend = match.namedGroup('trend');
 
     // adding the runway name
-    _runway.add(groupList[0]
+    _runway.add(name
         .substring(1)
         .replaceFirst('L', ' left')
         .replaceFirst('R', ' right')
         .replaceFirst('C', ' center'));
 
-    // adding if the range is out of medition
-    if (groupList[1].contains('P')) {
-      _runway.add('greater than');
-    } else if (groupList[1].contains('M')) {
-      _runway.add('less than');
-    } else {
-      _runway.add('');
-    }
-
     // adding the range units
-    if (groupList[1].contains('FT')) {
+    units ??= units = 'M';
+    if (units == 'FT') {
       units = 'feet';
     } else {
       units = 'meters';
     }
 
-    // adding the range
-    var value = groupList[1]
-        .replaceFirst(RegExp(r'^(M|P)?'), '')
-        .replaceFirst('FT', '')
-        .replaceFirst(RegExp(r'(N|U|D)?$'), '');
-    if (units == 'feet') {
-      _runway.add(Length.fromFeet(value: double.parse(value)));
-    } else {
-      _runway.add(Length.fromMeters(value: double.parse(value)));
-    }
+    // adding if the low range is out of medition
+    _runway.add(_handleLowHighRunway(low));
+    // adding the low range
+    _runway.add(_handleRunwayRange(low, units));
+
+    // adding if the high range is out of medition
+    _runway.add(_handleLowHighRunway(high));
+    // adding the high range
+    _runway.add(_handleRunwayRange(high, units));
 
     // adding the trend
-    if (groupList[1].contains('N')) {
+    trend ??= trend = '';
+    if (trend.contains('N')) {
       _runway.add('no change');
-    } else if (groupList[1].contains('U')) {
+    } else if (trend.contains('U')) {
       _runway.add('increasing');
     } else {
       _runway.add('decreasing');
     }
+  }
+
+  void _handleWeather(String group, {RegExpMatch match}) {
+    /*
+    Parse the weather groups
+
+    The following attributes are set
+      _weather          [List<Tuple5>]
+        * intensity     [String]
+        * description   [String]
+        * precipitation [String]
+        * obscuration   [String]
+        * other         [String]
+    */
+
+    Tuple5 tuple;
+    String intensity, description, precipitation, obscuration, other;
+
+    intensity = match.namedGroup('intensity');
+    description = match.namedGroup('descrip');
+    precipitation = match.namedGroup('precip');
+    obscuration = match.namedGroup('obsc');
+    other = match.namedGroup('other');
+
+    tuple = Tuple5(intensity, description, precipitation, obscuration, other);
+    _weather.add(tuple);
   }
 
   void _createHandlersListAndParse() {
@@ -405,15 +447,20 @@ class Metar {
       [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
       [regex.VISIBILITY_RE, _handleVisibility, false],
       [regex.SECVISIBILITY_RE, _handleMaxVis, false],
-      [regex.RUNWAY_RE, _handleRunway, false]
+      [regex.RUNWAY_RE, _handleRunway, false],
+      [regex.WEATHER_RE, _handleWeather, false],
+      [regex.WEATHER_RE, _handleWeather, false],
+      [regex.WEATHER_RE, _handleWeather, false],
     ];
+    Iterable<RegExpMatch> matches;
 
     _codeList.forEach((group) {
       for (var handler in _handlers) {
         logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
         print(handler[0].stringMatch(group));
         if (handler[0].hasMatch(group) && !handler[2]) {
-          handler[1](group);
+          matches = handler[0].allMatches(group);
+          handler[1](group, match: matches.elementAt(0));
           handler[2] = true;
           break;
         }
@@ -446,4 +493,5 @@ class Metar {
   Length get maxVisibility => _maxVis;
   Direction get maxVisibilityDirection => _maxVisDir;
   List get runway => _runway;
+  List<Tuple5> get weather => _weather;
 }

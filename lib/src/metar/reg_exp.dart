@@ -14,21 +14,22 @@ class METAR_REGEX {
   RegExp MODIFIER_RE = RegExp(r'^(AUTO|FINO|NIL|TEST|CORR?|RTD|CC[A-G])$');
 
   RegExp WIND_RE = RegExp(
-      r'^([\dO]{3}|///|MMM|VRB|P)([\dO]{2}|[/M]{2})(G(\d{2}|[/M{2}]))?(KTS?|KT|MPS)$');
+      r'^(?<dir>[\d]{3}|///|MMM|VRB|P)(?<speed>[\d]{2}|[/M]{2})(G(?<gust>\d{2}|[/M{2}]))?(?<units>KTS?|KT|MPS)$');
 
-  RegExp WINDVARIATION_RE = RegExp(r'((\d{3})V(\d{3}))$');
+  RegExp WINDVARIATION_RE = RegExp(r'((?<from>\d{3})V(?<to>\d{3}))$');
 
   RegExp OPTIONALVIS_RE = RegExp(r'^\d$');
 
   RegExp VISIBILITY_RE = RegExp(
-      r'^((\d{4}|\//\//)|((M|P)?(\d|\d{1,2}?/\d{1,2}?))(SM|KM|M|U))|(CAVOK)$');
+      r'^(?<vis>\d{4}|\//\//)|(?<extreme>M|P)?(?<visextreme>\d|\d{1,2}?/\d{1,2})(?<units>SM|KM|M|U)|(?<cavok>CAVOK)$');
 
-  RegExp SECVISIBILITY_RE = RegExp(r'^(\d{4})([NSEW]([EW])?)$');
+  RegExp SECVISIBILITY_RE = RegExp(r'^(?<vis>\d{4})(?<dir>[NSEW]([EW])?)$');
 
-  RegExp RUNWAY_RE = RegExp(r'^(R(\d{2}(R|L|C)?)/((M|P)?\d{4})(FT)?([NDU])?)');
+  RegExp RUNWAY_RE = RegExp(
+      r'^(?<name>R(\d{2}(R|L|C)?))/((?<low>(M|P)?\d{4})(V(?<high>(M|P)?\d{4}))?(?<units>FT)?(?<trend>[NDU])?)$');
 
   RegExp WEATHER_RE = RegExp(
-      r'^((-|\+|VC)*)((MI|PR|BC|DR|BL|SH|TS|FZ)+)?((DZ|RA|SN|SG|IC|PL|GR|GS|UP|/)*)(BR|FG|FU|VA|DU|SA|HZ|PY)?(PO|SQ|FC|SS|DS|NSW|/+)?([-+])?');
+      r'^((?<intensity>(-|\+|VC))?(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?((?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)|(?<obsc>BR|FG|FU|VA|DU|SA|HZ|PY)|(?<other>PO|SQ|FC|SS|DS|NSW|/))?)$');
 
   RegExp SKY_RE = RegExp(
       r'^(VV|CLR|SCK|SCK|NSC|NCD|BKN|SCT|FEW|[O0]VC|///)([\dO]{2,4}|///)?(([A-Z][A-Z]+|///))?');

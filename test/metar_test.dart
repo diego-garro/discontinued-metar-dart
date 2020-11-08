@@ -17,6 +17,17 @@ void main() {
   var metar = Metar(code, utcYear: 2021, utcMonth: 10);
   print('Month: ${metar.month}, Year: ${metar.year}');
   print(metar.code);
+  final regExp = RegExp(
+      r'^((?<intensity>(-|\+|VC))?(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?((?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)|(BR|FG|FU|VA|DU|SA|HZ|PY)|(PO|SQ|FC|SS|DS|NSW|/))?)$');
+  final matches = regExp.allMatches('+TS');
+  print(matches);
+  if (matches.isNotEmpty) {
+    print(matches.elementAt(0).group(0));
+    print(matches.elementAt(0).groupCount);
+    print(matches.elementAt(0).namedGroup('intensity'));
+    print(matches.elementAt(0).namedGroup('descrip'));
+    print(matches.elementAt(0).namedGroup('precip'));
+  }
   // final pos1 = Position(56.0, 75.0);
   // final pos2 = Position(20.5, 105.4);
 
