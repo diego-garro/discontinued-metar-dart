@@ -32,7 +32,7 @@ class METAR_REGEX {
       r'^((?<intensity>(-|\+|VC))?(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?((?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)|(?<obsc>BR|FG|FU|VA|DU|SA|HZ|PY)|(?<other>PO|SQ|FC|SS|DS|NSW|/))?)$');
 
   RegExp SKY_RE = RegExp(
-      r'^(VV|CLR|SCK|SCK|NSC|NCD|BKN|SCT|FEW|[O0]VC|///)([\dO]{2,4}|///)?(([A-Z][A-Z]+|///))?');
+      r'^(?<cover>VV|CLR|SCK|SCK|NSC|NCD|BKN|SCT|FEW|[O0]VC|///)(?<height>\d{3}|///)?(?<cloud>TCU|CB|///)?$');
 
   RegExp TEMP_RE = RegExp(r'^((M|-)?\d+|//|XX|MM)/((M|-)?\d+|//|XX|MM)?');
 

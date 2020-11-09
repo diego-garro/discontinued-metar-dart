@@ -107,10 +107,11 @@ class Metar {
   Temperature _temp;
   Temperature _dewpt;
   Pressure _press;
-  final _runway = <dynamic>[];
-  final _weather = <Tuple5>[];
+  final _runway =
+      <Tuple7<String, String, String, Length, String, Length, String>>[];
+  final _weather = <Tuple5<String, String, String, String, String>>[];
+  final _sky = <Tuple3<String, Length, String>>[];
   List<Tuple5> _recent;
-  List<Tuple3> _sky;
   List<String> _windshear;
   Speed _windSpeedPeak;
   Angle _windDirPeak;
@@ -357,14 +358,17 @@ class Metar {
     Parse the runway visual range group
 
     The following attributes are set
-      _runway         [List]
+      _runway         [List<Tuple7>]
         * name        [String]
         * rangeUnits  [String]
-        * range       [String]
+        * low         [String]
+        * lowRange    [Length]
+        * high        [String]
+        * highRange   [Length]
         * trend       [String]
     */
 
-    // _runway = List(5);
+    Tuple7<String, String, String, Length, String, Length, String> runway;
     String name, units, low, high, trend;
 
     name = match.namedGroup('name');
@@ -374,11 +378,11 @@ class Metar {
     trend = match.namedGroup('trend');
 
     // adding the runway name
-    _runway.add(name
+    var runwayName = name
         .substring(1)
         .replaceFirst('L', ' left')
         .replaceFirst('R', ' right')
-        .replaceFirst('C', ' center'));
+        .replaceFirst('C', ' center');
 
     // adding the range units
     units ??= units = 'M';
@@ -389,24 +393,27 @@ class Metar {
     }
 
     // adding if the low range is out of medition
-    _runway.add(_handleLowHighRunway(low));
+    low = _handleLowHighRunway(low);
     // adding the low range
-    _runway.add(_handleRunwayRange(low, units));
+    var lowRange = _handleRunwayRange(low, units);
 
     // adding if the high range is out of medition
-    _runway.add(_handleLowHighRunway(high));
+    high = _handleLowHighRunway(high);
     // adding the high range
-    _runway.add(_handleRunwayRange(high, units));
+    var highRange = _handleRunwayRange(high, units);
 
     // adding the trend
     trend ??= trend = '';
     if (trend.contains('N')) {
-      _runway.add('no change');
+      trend = 'no change';
     } else if (trend.contains('U')) {
-      _runway.add('increasing');
+      trend = 'increasing';
     } else {
-      _runway.add('decreasing');
+      trend = 'decreasing';
     }
+
+    runway = Tuple7(name, units, low, lowRange, high, highRange, trend);
+    _runway.add(runway);
   }
 
   void _handleWeather(String group, {RegExpMatch match}) {
@@ -422,7 +429,7 @@ class Metar {
         * other         [String]
     */
 
-    Tuple5 tuple;
+    Tuple5<String, String, String, String, String> tuple;
     String intensity, description, precipitation, obscuration, other;
 
     intensity = match.namedGroup('intensity');
@@ -433,6 +440,34 @@ class Metar {
 
     tuple = Tuple5(intensity, description, precipitation, obscuration, other);
     _weather.add(tuple);
+  }
+
+  void _handleSky(String group, {RegExpMatch match}) {
+    /*
+    Parse the sky groups
+
+    The following attributes are set
+      _sky        [List<Tuple3>]
+        * cover   [String]
+        * height  [Length]
+        * cloud   [String]
+    */
+    Tuple3<String, Length, String> sky;
+    String cover, height, cloud;
+    Length heightVis;
+
+    cover = match.namedGroup('cover');
+    height = match.namedGroup('height');
+    cloud = match.namedGroup('cloud');
+
+    if (height == '///' || height == null) {
+      heightVis = Length.fromFeet();
+    } else {
+      heightVis = Length.fromFeet(value: double.parse(height) * 100);
+    }
+
+    sky = Tuple3(cover, heightVis, cloud);
+    _sky.add(sky);
   }
 
   void _createHandlersListAndParse() {
@@ -451,6 +486,10 @@ class Metar {
       [regex.WEATHER_RE, _handleWeather, false],
       [regex.WEATHER_RE, _handleWeather, false],
       [regex.WEATHER_RE, _handleWeather, false],
+      [regex.SKY_RE, _handleSky, false],
+      [regex.SKY_RE, _handleSky, false],
+      [regex.SKY_RE, _handleSky, false],
+      [regex.SKY_RE, _handleSky, false],
     ];
     Iterable<RegExpMatch> matches;
 
@@ -494,4 +533,5 @@ class Metar {
   Direction get maxVisibilityDirection => _maxVisDir;
   List get runway => _runway;
   List<Tuple5> get weather => _weather;
+  List<Tuple3> get sky => _sky;
 }
