@@ -70,6 +70,13 @@ Length _handleRunwayRange(String range, String units) {
   }
 }
 
+Temperature _defineTemperature(String sign, String temp) {
+  if (sign != null) {
+    return Temperature.fromCelsius(value: double.parse('-' + temp));
+  }
+  return Temperature.fromCelsius(value: double.parse(temp));
+}
+
 class ParserError implements Exception {
   String _message = 'ParserError: ';
 
@@ -470,6 +477,31 @@ class Metar {
     _sky.add(sky);
   }
 
+  void _handleTemperatures(String group, {RegExpMatch match}) {
+    /*
+    Parse the temperature group
+
+    The following attributes are set
+      _temp   [Temperature]
+      _dewpt  [Temperature]
+    */
+    String tsign, temp, dsign, dewpt;
+    var regex = RegExp(r'^\d{2}');
+
+    tsign = match.namedGroup('tsign');
+    temp = match.namedGroup('temp');
+    dsign = match.namedGroup('dsign');
+    dewpt = match.namedGroup('dewpt');
+
+    if (regex.hasMatch(temp)) {
+      _temp = _defineTemperature(tsign, temp);
+    }
+
+    if (regex.hasMatch(dewpt)) {
+      _dewpt = _defineTemperature(dsign, dewpt);
+    }
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -490,6 +522,7 @@ class Metar {
       [regex.SKY_RE, _handleSky, false],
       [regex.SKY_RE, _handleSky, false],
       [regex.SKY_RE, _handleSky, false],
+      [regex.TEMP_RE, _handleTemperatures, false],
     ];
     Iterable<RegExpMatch> matches;
 
@@ -534,4 +567,6 @@ class Metar {
   List get runway => _runway;
   List<Tuple5> get weather => _weather;
   List<Tuple3> get sky => _sky;
+  Temperature get temperature => _temp;
+  Temperature get dewPointTemperature => _dewpt;
 }

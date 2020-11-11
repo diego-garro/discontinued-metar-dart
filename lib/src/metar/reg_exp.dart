@@ -34,7 +34,8 @@ class METAR_REGEX {
   RegExp SKY_RE = RegExp(
       r'^(?<cover>VV|CLR|SCK|SCK|NSC|NCD|BKN|SCT|FEW|[O0]VC|///)(?<height>\d{3}|///)?(?<cloud>TCU|CB|///)?$');
 
-  RegExp TEMP_RE = RegExp(r'^((M|-)?\d+|//|XX|MM)/((M|-)?\d+|//|XX|MM)?');
+  RegExp TEMP_RE = RegExp(
+      r'^(?<tsign>M|-)?(?<temp>\d{2}|//|XX|MM)/(?<dsign>M|-)?(?<dewpt>\d{2}|//|XX|MM)$');
 
   RegExp PRESS_RE = RegExp(r'^(A|Q|QNH)?([\dO]{3,4}|\//\//)(INS)?');
 
