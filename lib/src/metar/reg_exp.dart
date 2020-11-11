@@ -37,10 +37,11 @@ class METAR_REGEX {
   RegExp TEMP_RE = RegExp(
       r'^(?<tsign>M|-)?(?<temp>\d{2}|//|XX|MM)/(?<dsign>M|-)?(?<dewpt>\d{2}|//|XX|MM)$');
 
-  RegExp PRESS_RE = RegExp(r'^(A|Q|QNH)?([\dO]{3,4}|\//\//)(INS)?');
+  RegExp PRESS_RE =
+      RegExp(r'^(?<units>A|Q|QNH)?(?<press>\d{4}|\//\//)(?<units2>INS)?$');
 
   RegExp RECENT_RE = RegExp(
-      r'^RE(MI|PR|BC|DR|BL|SH|TS|FZ)?((DZ|RA|SN|SG|IC|PL|GR|GS|UP)*)?(BR|FG|VA|DU|SA|HZ|PY)?(PO|SQ|FC|SS|DS)?');
+      r'^RE(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?(?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)?(?<obsc>BR|FG|VA|DU|SA|HZ|PY)?(?<other>PO|SQ|FC|SS|DS)?');
 
   RegExp WINDSHEAR_RE = RegExp(r'^(WS\s+)?(ALL\s+RWY|RWY(\d{2}()))');
 

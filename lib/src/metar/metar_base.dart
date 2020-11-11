@@ -502,6 +502,40 @@ class Metar {
     }
   }
 
+  void _handlePressure(String group, {RegExpMatch match}) {
+    /*
+    Parse the pressure group
+
+    The following attributes are set
+      _press    [Pressure]
+    */
+    String units, press, units2;
+
+    units = match.namedGroup('units');
+    press = match.namedGroup('press');
+    units2 = match.namedGroup('units2');
+
+    if (press != '\//\//') {
+      var pressDouble = double.parse(press);
+      if (units == 'A' || units2 == 'INS') {
+        _press = Pressure.fromInHg(value: pressDouble / 100);
+      } else if (units == 'Q' || units == 'QNH') {
+        _press = Pressure.fromHPa(value: pressDouble);
+      } else if (units == 'SLP') {
+        if (pressDouble < 500) {
+          pressDouble = pressDouble / 10 + 1000;
+        } else {
+          pressDouble = pressDouble / 10 + 900;
+        }
+        _press = Pressure.fromMb(value: pressDouble);
+      } else if (pressDouble > 2500.0) {
+        _press = Pressure.fromInHg(value: pressDouble / 100);
+      } else {
+        _press = Pressure.fromMb(value: pressDouble);
+      }
+    }
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -523,6 +557,7 @@ class Metar {
       [regex.SKY_RE, _handleSky, false],
       [regex.SKY_RE, _handleSky, false],
       [regex.TEMP_RE, _handleTemperatures, false],
+      [regex.PRESS_RE, _handlePressure, false],
     ];
     Iterable<RegExpMatch> matches;
 
@@ -569,4 +604,5 @@ class Metar {
   List<Tuple3> get sky => _sky;
   Temperature get temperature => _temp;
   Temperature get dewPointTemperature => _dewpt;
+  Pressure get pressure => _press;
 }
