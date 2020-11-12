@@ -1,10 +1,10 @@
-import '../lib/metar.dart';
+import 'package:metar/metar.dart';
 
 void main() async {
   // var metarcode =
   //     'METAR MROC 071200Z COR P49MPS 250V110 0500 R07/P2000N BR VV003 17/09 A2994 RESHRA NOSIG';
   var metarcode =
-      'NFNM 122100Z 13025G35KT 5000 3000NW R07L/M0050D 270V100 +RA BR VCTS FEW010 SCT025TCU BKN100 28/27 3002';
+      'NFNM 122100Z 13025G35KT 5000 3000NW R07L/M0050D 270V100 +RA BR VCTS FEW010 SCT025TCU BKN100 28/27 A3002 RERA';
   // var metarcode =
   //     'CYQU 161518Z 05013KT 1 1/4SM -SN VV009 M02/M03 A2993 RMK SN8 SLP168';
   var metar = Metar(metarcode);
@@ -44,4 +44,5 @@ void main() async {
   print('Temperature: ${metar.temperature.inCelsius}');
   print('Dew Point Temperature: ${metar.dewPointTemperature.inCelsius}');
   print('Pressure: ${metar.pressure.inHPa} hPa');
+  print('Recent weather: ${metar.recentWeather}');
 }

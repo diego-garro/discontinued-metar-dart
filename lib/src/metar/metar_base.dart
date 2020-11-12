@@ -118,7 +118,7 @@ class Metar {
       <Tuple7<String, String, String, Length, String, Length, String>>[];
   final _weather = <Tuple5<String, String, String, String, String>>[];
   final _sky = <Tuple3<String, Length, String>>[];
-  List<Tuple5> _recent;
+  final _recent = <Tuple4<String, String, String, String>>[];
   List<String> _windshear;
   Speed _windSpeedPeak;
   Angle _windDirPeak;
@@ -536,6 +536,30 @@ class Metar {
     }
   }
 
+  void _handleRecent(String group, {RegExpMatch match}) {
+    /*
+    Parse the recent group
+
+    The following attributes are set
+      _recent          [List<Tuple5>]
+        * description   [String]
+        * precipitation [String]
+        * obscuration   [String]
+        * other         [String]
+    */
+
+    Tuple4<String, String, String, String> tuple;
+    String description, precipitation, obscuration, other;
+
+    description = match.namedGroup('descrip');
+    precipitation = match.namedGroup('precip');
+    obscuration = match.namedGroup('obsc');
+    other = match.namedGroup('other');
+
+    tuple = Tuple4(description, precipitation, obscuration, other);
+    _recent.add(tuple);
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -558,6 +582,7 @@ class Metar {
       [regex.SKY_RE, _handleSky, false],
       [regex.TEMP_RE, _handleTemperatures, false],
       [regex.PRESS_RE, _handlePressure, false],
+      [regex.RECENT_RE, _handleRecent, false],
     ];
     Iterable<RegExpMatch> matches;
 
@@ -605,4 +630,5 @@ class Metar {
   Temperature get temperature => _temp;
   Temperature get dewPointTemperature => _dewpt;
   Pressure get pressure => _press;
+  List<Tuple4> get recentWeather => _recent;
 }
