@@ -43,7 +43,9 @@ class METAR_REGEX {
   RegExp RECENT_RE = RegExp(
       r'^RE(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?(?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)?(?<obsc>BR|FG|VA|DU|SA|HZ|PY)?(?<other>PO|SQ|FC|SS|DS)?');
 
-  RegExp WINDSHEAR_RE = RegExp(r'^(WS\s+)?(ALL\s+RWY|RWY(\d{2}()))');
+  RegExp WINDSHEAR_PREFIX_RE = RegExp(r'^(?<prefix>WS|ALL)$');
+
+  RegExp WINDSHEAR_RUNWAY_RE = RegExp(r'^(?<runway>RWY|R\d{2}|R\d{2}[RCL])$');
 
   RegExp COLOR_RE =
       RegExp(r'^(BLACK)?(BLU|GRN|WHT|RED)\+?(/?(BLACK)?(BLU|GRN|WHT|RED)\+?)*');

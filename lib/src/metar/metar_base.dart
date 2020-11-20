@@ -77,6 +77,14 @@ Temperature _defineTemperature(String sign, String temp) {
   return Temperature.fromCelsius(value: double.parse(temp));
 }
 
+String _handleRunwayName(String name) {
+  return name
+      .substring(1)
+      .replaceFirst('L', ' left')
+      .replaceFirst('R', ' right')
+      .replaceFirst('C', ' center');
+}
+
 class ParserError implements Exception {
   String _message = 'ParserError: ';
 
@@ -119,7 +127,7 @@ class Metar {
   final _weather = <Tuple5<String, String, String, String, String>>[];
   final _sky = <Tuple3<String, Length, String>>[];
   final _recent = <Tuple4<String, String, String, String>>[];
-  List<String> _windshear;
+  final _windshear = <String>[];
   Speed _windSpeedPeak;
   Angle _windDirPeak;
   DateTime _windPeakTime;
@@ -384,14 +392,7 @@ class Metar {
     high = match.namedGroup('high');
     trend = match.namedGroup('trend');
 
-    // adding the runway name
-    var runwayName = name
-        .substring(1)
-        .replaceFirst('L', ' left')
-        .replaceFirst('R', ' right')
-        .replaceFirst('C', ' center');
-
-    // adding the range units
+    // setting the range units
     units ??= units = 'M';
     if (units == 'FT') {
       units = 'feet';
@@ -399,17 +400,17 @@ class Metar {
       units = 'meters';
     }
 
-    // adding if the low range is out of medition
+    // setting if the low range is out of medition
     low = _handleLowHighRunway(low);
-    // adding the low range
+    // setting the low range
     var lowRange = _handleRunwayRange(low, units);
 
-    // adding if the high range is out of medition
+    // setting if the high range is out of medition
     high = _handleLowHighRunway(high);
-    // adding the high range
+    // setting the high range
     var highRange = _handleRunwayRange(high, units);
 
-    // adding the trend
+    // setting the trend
     trend ??= trend = '';
     if (trend.contains('N')) {
       trend = 'no change';
@@ -419,7 +420,8 @@ class Metar {
       trend = 'decreasing';
     }
 
-    runway = Tuple7(name, units, low, lowRange, high, highRange, trend);
+    runway = Tuple7(
+        _handleRunwayName(name), units, low, lowRange, high, highRange, trend);
     _runway.add(runway);
   }
 
@@ -560,6 +562,38 @@ class Metar {
     _recent.add(tuple);
   }
 
+  void _handleWindShearPrefix(String group, {RegExpMatch match}) {
+    /*
+    Parse the windshear group: prefix
+
+    The following attributes are set
+      _windshear    [List<String>]
+    */
+    String prefix;
+
+    prefix = match.namedGroup('prefix');
+
+    _windshear.add(prefix);
+  }
+
+  void _handleWindShearRunway(String group, {RegExpMatch match}) {
+    /*
+    Parse the windshear group: runway
+
+    The following attributes are set
+      _windshear    [List<String>]
+    */
+    String name;
+
+    name = match.namedGroup('runway');
+
+    if (name == 'RWY') {
+      _windshear.add(name);
+    } else {
+      _windshear.add(_handleRunwayName(name));
+    }
+  }
+
   void _createHandlersListAndParse() {
     _handlers = [
       [regex.TYPE_RE, _handleType, false],
@@ -583,6 +617,9 @@ class Metar {
       [regex.TEMP_RE, _handleTemperatures, false],
       [regex.PRESS_RE, _handlePressure, false],
       [regex.RECENT_RE, _handleRecent, false],
+      [regex.WINDSHEAR_PREFIX_RE, _handleWindShearPrefix, false],
+      [regex.WINDSHEAR_PREFIX_RE, _handleWindShearPrefix, false],
+      [regex.WINDSHEAR_RUNWAY_RE, _handleWindShearRunway, false],
     ];
     Iterable<RegExpMatch> matches;
 
@@ -631,4 +668,5 @@ class Metar {
   Temperature get dewPointTemperature => _dewpt;
   Pressure get pressure => _press;
   List<Tuple4> get recentWeather => _recent;
+  List<String> get windshear => _windshear;
 }
