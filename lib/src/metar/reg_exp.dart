@@ -57,7 +57,7 @@ class METAR_REGEX {
 
   RegExp TRENDTIME_RE = RegExp(r'^(FM|TL|AT)(\d{2})(\d{2}\s+)');
 
-  RegExp REMARK_RE = RegExp(r'^((RMK(S)?)|NOSPECI|NOSIG)');
+  RegExp REMARK_RE = RegExp(r'^((RMK(S)?)|NOSPECI)');
 
 // Regular expressions for remark groups
   RegExp AUTO_RE = RegExp(r'^AO(\d)\s+');

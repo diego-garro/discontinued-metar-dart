@@ -14,6 +14,42 @@ import 'package:metar/src/units/pressure.dart';
 import 'package:metar/src/units/speed.dart';
 import 'package:metar/src/units/temperature.dart';
 
+List<String> _divideMetarCode(String code) {
+  String body, rmk, trend;
+  final regexp = METAR_REGEX();
+  int rmkIndex, trendIndex;
+
+  if (regexp.TREND_RE.hasMatch(code)) {
+    trendIndex = regexp.TREND_RE.firstMatch(code).start;
+  }
+
+  if (regexp.REMARK_RE.hasMatch(code)) {
+    rmkIndex = regexp.REMARK_RE.firstMatch(code).start;
+  }
+
+  if (trendIndex == null && rmkIndex != null) {
+    body = code.substring(0, rmkIndex);
+    rmk = code.substring(rmkIndex);
+  } else if (trendIndex != null && rmkIndex == null) {
+    body = code.substring(0, trendIndex);
+    trend = code.substring(trendIndex);
+  } else if (trendIndex == null && rmkIndex == null) {
+    body = code;
+  } else {
+    if (trendIndex > rmkIndex) {
+      body = code.substring(0, rmkIndex);
+      rmk = code.substring(rmkIndex, trendIndex);
+      trend = code.substring(trendIndex);
+    } else {
+      body = code.substring(0, trendIndex);
+      trend = code.substring(trendIndex, rmkIndex);
+      rmk = code.substring(rmkIndex);
+    }
+  }
+
+  return <String>[body, trend, rmk];
+}
+
 Future<Station> _getStationFromFile(String stationCode) async {
   var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
   var myFile = File.fromUri(dirName);
@@ -100,8 +136,8 @@ class ParserError implements Exception {
 
 class Metar {
   final logger = SimpleLogger();
-  String _code;
-  List<String> _codeList;
+  String _code, _body, _trend, _rmk;
+  List<String> _bodyList, _trendList, _rmkList;
   String _type = 'METAR';
   bool _correction = false;
   String _mod = 'AUTO';
@@ -126,7 +162,7 @@ class Metar {
       <Tuple7<String, String, String, Length, String, Length, String>>[];
   final _weather = <Tuple5<String, String, String, String, String>>[];
   final _sky = <Tuple3<String, Length, String>>[];
-  final _recent = <Tuple4<String, String, String, String>>[];
+  List<String> _recent;
   final _windshear = <String>[];
   Speed _windSpeedPeak;
   Angle _windDirPeak;
@@ -145,7 +181,6 @@ class Metar {
   double _iceAccretion1hr;
   double _iceAccretion3hr;
   double _iceAccretion6hr;
-  bool _trend = false;
   List _trendGroups;
   List<String> _remarks;
   List<String> _unparsedGroups;
@@ -156,7 +191,7 @@ class Metar {
   String errorMessage;
   Map<String, dynamic> metarMap;
   final regex = METAR_REGEX();
-  List<List> _handlers;
+  List<List> _bodyHandlers;
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
     logger.setLevel(Level.INFO);
@@ -169,7 +204,19 @@ class Metar {
 
     _code =
         metarcode.trim().replaceAll(RegExp(r'\s+'), ' ').replaceAll('=', '');
-    _codeList = _code.split(' ');
+    var dividedCode = _divideMetarCode(_code);
+
+    _body = dividedCode[0];
+    _trend = dividedCode[1];
+    _rmk = dividedCode[2];
+
+    _bodyList = _body.split(' ');
+    if (_trend != null) {
+      _trendList = _trend.split(' ');
+    }
+    if (_rmk != null) {
+      _rmkList = _rmk.split(' ');
+    }
 
     _now = DateTime.now();
 
@@ -549,8 +596,6 @@ class Metar {
         * obscuration   [String]
         * other         [String]
     */
-
-    Tuple4<String, String, String, String> tuple;
     String description, precipitation, obscuration, other;
 
     description = match.namedGroup('descrip');
@@ -558,8 +603,7 @@ class Metar {
     obscuration = match.namedGroup('obsc');
     other = match.namedGroup('other');
 
-    tuple = Tuple4(description, precipitation, obscuration, other);
-    _recent.add(tuple);
+    _recent = <String>[description, precipitation, obscuration, other];
   }
 
   void _handleWindShearPrefix(String group, {RegExpMatch match}) {
@@ -595,7 +639,8 @@ class Metar {
   }
 
   void _createHandlersListAndParse() {
-    _handlers = [
+    Iterable<RegExpMatch> matches;
+    _bodyHandlers = [
       [regex.TYPE_RE, _handleType, false],
       [regex.STATION_RE, _handleStation, false],
       [regex.TIME_RE, _handleTime, false],
@@ -621,10 +666,9 @@ class Metar {
       [regex.WINDSHEAR_PREFIX_RE, _handleWindShearPrefix, false],
       [regex.WINDSHEAR_RUNWAY_RE, _handleWindShearRunway, false],
     ];
-    Iterable<RegExpMatch> matches;
 
-    _codeList.forEach((group) {
-      for (var handler in _handlers) {
+    _bodyList.forEach((group) {
+      for (var handler in _bodyHandlers) {
         logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
         print(handler[0].stringMatch(group));
         if (handler[0].hasMatch(group) && !handler[2]) {
@@ -633,11 +677,12 @@ class Metar {
           handler[2] = true;
           break;
         }
-        // if (_handlers.indexOf(handler) == _handlers.length - 1) {
-        //   errorMessage = 'failed while processing "$group". Code: $_code.';
-        //   logger.info(errorMessage);
-        //   throw ParserError(errorMessage);
-        // }
+
+        if (_bodyHandlers.indexOf(handler) == _bodyHandlers.length - 1) {
+          errorMessage = 'failed while processing "$group". Code: $_code.';
+          logger.info(errorMessage);
+          throw ParserError(errorMessage);
+        }
       }
     });
   }
@@ -646,7 +691,7 @@ class Metar {
   int get month => _month;
   int get year => _year;
   String get code => _code;
-  List<String> get codeList => _codeList;
+  List<String> get bodyList => _bodyList;
   String get type => _type;
   DateTime get time => _time;
   bool get correction => _correction;
@@ -667,6 +712,6 @@ class Metar {
   Temperature get temperature => _temp;
   Temperature get dewPointTemperature => _dewpt;
   Pressure get pressure => _press;
-  List<Tuple4> get recentWeather => _recent;
+  List<String> get recentWeather => _recent;
   List<String> get windshear => _windshear;
 }
