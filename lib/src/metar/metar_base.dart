@@ -1,4 +1,4 @@
-import 'package:path/path.dart' show dirname;
+// import 'package:path/path.dart' show dirname;
 import 'dart:io';
 import 'dart:convert';
 
@@ -18,6 +18,7 @@ List<String> _divideMetarCode(String code) {
   String body, rmk, trend;
   final regexp = METAR_REGEX();
   int rmkIndex, trendIndex;
+  final logger = SimpleLogger();
 
   if (regexp.TREND_RE.hasMatch(code)) {
     trendIndex = regexp.TREND_RE.firstMatch(code).start;
@@ -28,25 +29,25 @@ List<String> _divideMetarCode(String code) {
   }
 
   if (trendIndex == null && rmkIndex != null) {
-    body = code.substring(0, rmkIndex);
+    body = code.substring(0, rmkIndex - 1);
     rmk = code.substring(rmkIndex);
   } else if (trendIndex != null && rmkIndex == null) {
-    body = code.substring(0, trendIndex);
+    body = code.substring(0, trendIndex - 1);
     trend = code.substring(trendIndex);
   } else if (trendIndex == null && rmkIndex == null) {
     body = code;
   } else {
     if (trendIndex > rmkIndex) {
-      body = code.substring(0, rmkIndex);
-      rmk = code.substring(rmkIndex, trendIndex);
+      body = code.substring(0, rmkIndex - 1);
+      rmk = code.substring(rmkIndex, trendIndex - 1);
       trend = code.substring(trendIndex);
     } else {
-      body = code.substring(0, trendIndex);
-      trend = code.substring(trendIndex, rmkIndex);
+      body = code.substring(0, trendIndex - 1);
+      trend = code.substring(trendIndex, rmkIndex - 1);
       rmk = code.substring(rmkIndex);
     }
   }
-
+  logger.info('LOGGER INFO: $body, $trend, $rmk');
   return <String>[body, trend, rmk];
 }
 
@@ -148,10 +149,15 @@ class Metar {
   Direction _windDir;
   Speed _windSpeed;
   Speed _windGust;
+  Direction _trendWindDir;
+  Speed _trendWindSpeed;
+  Speed _trendWindGust;
   Direction _windDirFrom;
   Direction _windDirTo;
   Length _vis;
+  Length _trendVis;
   Length _optionalVis;
+  Length _trendOptionalVis;
   Length _maxVis;
   Direction _maxVisDir;
   bool _cavok;
@@ -162,8 +168,10 @@ class Metar {
       <Tuple7<String, String, String, Length, String, Length, String>>[];
   final _weather = <Tuple5<String, String, String, String, String>>[];
   final _sky = <Tuple3<String, Length, String>>[];
+  final _trendSky = <Tuple3<String, Length, String>>[];
   List<String> _recent;
   final _windshear = <String>[];
+  String _trendCode;
   Speed _windSpeedPeak;
   Angle _windDirPeak;
   DateTime _windPeakTime;
@@ -192,6 +200,7 @@ class Metar {
   Map<String, dynamic> metarMap;
   final regex = METAR_REGEX();
   List<List> _bodyHandlers;
+  List<List> _trendHandlers;
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
     logger.setLevel(Level.INFO);
@@ -232,7 +241,8 @@ class Metar {
       _year = _now.year;
     }
 
-    _createHandlersListAndParse();
+    _createBodyHandlersListAndParse();
+    _createTrendHanldersListAndParse();
   }
 
   // Handlers for groups
@@ -306,9 +316,20 @@ class Metar {
     }
   }
 
-  void _handleWind(String group, {RegExpMatch match}) {
+  void _handleWind(
+    String group, {
+    RegExpMatch match,
+    String section = 'body',
+  }) {
     /*
     Parse the wind group
+
+    params:
+      group:    [String] The individual group
+      match:    [RegExpMatch] The matcha of the regular expression
+      section:  [String] Section of Metar that will be parsed
+        options -> body
+                -> trend
 
     The following attributes are set
       _windDir     [Direction]
@@ -317,6 +338,8 @@ class Metar {
     */
     group.replaceAll('O', '0');
     String units, windDir, windSpeed, windGust;
+    Direction dirValue;
+    Speed speedValue, gustValue;
 
     units = match.namedGroup('units');
     windDir = match.namedGroup('dir');
@@ -324,19 +347,29 @@ class Metar {
     windGust = match.namedGroup('gust');
 
     if (windDir != null && RegExp(r'^\d+$').hasMatch(windDir)) {
-      _windDir = Direction.fromDegrees(value: windDir);
+      dirValue = Direction.fromDegrees(value: windDir);
     } else {
-      _windDir = Direction.fromUndefined(value: windDir);
+      dirValue = Direction.fromDegrees(value: windDir);
     }
     if (windSpeed != null && RegExp(r'^\d+$').hasMatch(windSpeed)) {
-      if (units == 'KT' || units == 'KTS') {
-        _windSpeed = Speed.fromKnot(value: double.parse(windSpeed));
+      if ((units == 'KT' || units == 'KTS')) {
+        speedValue = Speed.fromKnot(value: double.parse(windSpeed));
       } else {
-        _windSpeed = Speed.fromMeterPerSecond(value: double.parse(windSpeed));
+        speedValue = Speed.fromKnot(value: double.parse(windSpeed));
       }
     }
     if (windGust != null && group.contains('G')) {
-      _windGust = Speed.fromKnot(value: double.parse(windGust));
+      gustValue = Speed.fromKnot(value: double.parse(windGust));
+    }
+
+    if (section == 'body') {
+      _windDir = dirValue;
+      _windSpeed = speedValue;
+      _windGust = gustValue;
+    } else {
+      _trendWindDir = dirValue;
+      _trendWindSpeed = speedValue;
+      _trendWindGust = gustValue;
     }
   }
 
@@ -352,24 +385,51 @@ class Metar {
     _windDirTo = Direction.fromDegrees(value: match.namedGroup('to'));
   }
 
-  void _handleOptionalVisibility(String group, {RegExpMatch match}) {
+  void _handleOptionalVisibility(
+    String group, {
+    RegExpMatch match,
+    String section = 'body',
+  }) {
     /*
     Parse the optional visibility if units are SM
+
+    params:
+      group:    [String] The individual group
+      match:    [RegExpMatch] The matcha of the regular expression
+      section:  [String] Section of Metar that will be parsed
+        options -> body
+                -> trend
 
     The following attributes are set
       _optionalVisibility   [Length]
     */
-    _optionalVis = Length.fromMiles(value: double.parse(group));
+    if (section == 'body') {
+      _optionalVis = Length.fromMiles(value: double.parse(group));
+    } else {
+      _trendOptionalVis = Length.fromMiles(value: double.parse(group));
+    }
   }
 
-  void _handleVisibility(String group, {RegExpMatch match}) {
+  void _handleVisibility(
+    String group, {
+    RegExpMatch match,
+    String section = 'body',
+  }) {
     /*
     Parse the visibility group
+
+    params:
+      group:    [String] The individual group
+      match:    [RegExpMatch] The matcha of the regular expression
+      section:  [String] Section of Metar that will be parsed
+        options -> body
+                -> trend
 
     The following attributes are set
       _vis    [Length]
     */
     String units, vis, extreme, visExtreme, cavok;
+    Length value;
     units = match.namedGroup('units');
     vis = match.namedGroup('vis');
     extreme = match.namedGroup('extreme');
@@ -378,28 +438,39 @@ class Metar {
 
     if (visExtreme != null && visExtreme.contains('/')) {
       var items = visExtreme.split('/');
-      vis = '${int.parse(items[0]) / int.parse(items[1])}';
+      visExtreme = '${int.parse(items[0]) / int.parse(items[1])}';
     }
 
-    (cavok == null) ? _cavok = false : _cavok = true;
+    if (section == 'body') {
+      (cavok == null) ? _cavok = false : _cavok = true;
+    }
 
     units ??= units = 'M';
 
     if (units == 'SM') {
       if (_optionalVis != null) {
-        _vis =
-            Length.fromMiles(value: _optionalVis.inMiles + double.parse(vis));
+        value = Length.fromMiles(
+            value: _optionalVis.inMiles + double.parse(visExtreme));
+      } else if (_trendOptionalVis != null) {
+        value = Length.fromMiles(
+            value: _trendOptionalVis.inMiles + double.parse(visExtreme));
       } else {
-        _vis = Length.fromMiles(value: double.parse(vis));
+        value = Length.fromMiles(value: double.parse(visExtreme));
       }
     } else if (units == 'KM') {
-      _vis = Length.fromKilometers(value: double.parse(vis));
+      value = Length.fromKilometers(value: double.parse(visExtreme));
     } else {
-      if (vis == '9999' || _cavok) {
-        _vis = Length.fromMeters(value: double.parse('10000'));
+      if ((vis == '9999' || _cavok) && section == 'body') {
+        value = Length.fromMeters(value: double.parse('10000'));
       } else {
-        _vis = Length.fromMeters(value: double.parse(vis));
+        value = Length.fromMeters(value: double.parse(vis));
       }
+    }
+
+    if (section == 'body') {
+      _vis = value;
+    } else {
+      _trendVis = value;
     }
   }
 
@@ -638,8 +709,47 @@ class Metar {
     }
   }
 
-  void _createHandlersListAndParse() {
+  void _parseGroups(List<String> groupList, List<List> handlers,
+      {String section = 'body'}) {
     Iterable<RegExpMatch> matches;
+    groupList.forEach((group) {
+      for (var handler in handlers) {
+        logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
+        print(handler[0].stringMatch(group));
+        if (handler[0].hasMatch(group) && !handler[2]) {
+          matches = handler[0].allMatches(group);
+          if (section == 'body') {
+            handler[1](group, match: matches.elementAt(0));
+          } else {
+            handler[1](group, match: matches.elementAt(0), section: section);
+          }
+          handler[2] = true;
+          break;
+        }
+
+        if (handlers.indexOf(handler) == handlers.length - 1) {
+          errorMessage = 'failed while processing "$group". Code: $_code.';
+          logger.info(errorMessage);
+          throw ParserError(errorMessage);
+        }
+      }
+    });
+  }
+
+  void _createTrendHanldersListAndParse() {
+    _trendHandlers = [
+      [regex.WIND_RE, _handleWind, false],
+      [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
+      [regex.VISIBILITY_RE, _handleVisibility, false],
+      // [regex.WEATHER_RE]
+    ];
+
+    _trendCode = _trendList[0];
+
+    _parseGroups(_trendList.sublist(1), _trendHandlers, section: 'trend');
+  }
+
+  void _createBodyHandlersListAndParse() {
     _bodyHandlers = [
       [regex.TYPE_RE, _handleType, false],
       [regex.STATION_RE, _handleStation, false],
@@ -667,27 +777,10 @@ class Metar {
       [regex.WINDSHEAR_RUNWAY_RE, _handleWindShearRunway, false],
     ];
 
-    _bodyList.forEach((group) {
-      for (var handler in _bodyHandlers) {
-        logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
-        print(handler[0].stringMatch(group));
-        if (handler[0].hasMatch(group) && !handler[2]) {
-          matches = handler[0].allMatches(group);
-          handler[1](group, match: matches.elementAt(0));
-          handler[2] = true;
-          break;
-        }
-
-        if (_bodyHandlers.indexOf(handler) == _bodyHandlers.length - 1) {
-          errorMessage = 'failed while processing "$group". Code: $_code.';
-          logger.info(errorMessage);
-          throw ParserError(errorMessage);
-        }
-      }
-    });
+    _parseGroups(_bodyList, _bodyHandlers);
   }
 
-  // Getters
+  // Body getters
   int get month => _month;
   int get year => _year;
   String get code => _code;
@@ -714,4 +807,11 @@ class Metar {
   Pressure get pressure => _press;
   List<String> get recentWeather => _recent;
   List<String> get windshear => _windshear;
+
+  // Trend getters
+  String get trendCode => _trendCode;
+  Direction get trendWindDir => _trendWindDir;
+  Speed get trendWindSpeed => _trendWindSpeed;
+  Speed get trendWindGust => _trendWindGust;
+  Length get trendVisibility => _trendVis;
 }

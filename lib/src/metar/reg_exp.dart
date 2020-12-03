@@ -21,7 +21,7 @@ class METAR_REGEX {
   RegExp OPTIONALVIS_RE = RegExp(r'^\d$');
 
   RegExp VISIBILITY_RE = RegExp(
-      r'^(?<vis>\d{4}|\//\//)|(?<extreme>M|P)?(?<visextreme>\d|\d{1,2}?/\d{1,2})(?<units>SM|KM|M|U)|(?<cavok>CAVOK)$');
+      r'^(?<vis>\d{4}|\//\//)|(?<extreme>M|P)?(?<visextreme>\d{1,2}|\d/\d)(?<units>SM|KM|M|U)|(?<cavok>CAVOK)$');
 
   RegExp SECVISIBILITY_RE = RegExp(r'^(?<vis>\d{4})(?<dir>[NSEW]([EW])?)$');
 
@@ -53,11 +53,11 @@ class METAR_REGEX {
   RegExp RUNWAYSTATE_RE = RegExp(
       r'^((\d{2}) | R(\d{2})(RR?|LL?|C)?/?)((SNOCLO|CLRD(\d{2}|//)) | (\d|/)(\d|/)(\d{2}|//)(\d{2}|//))');
 
-  RegExp TREND_RE = RegExp(r'^(TEMPO|BECMG|FCST|NOSIG)');
+  RegExp TREND_RE = RegExp(r'(TEMPO|BECMG|FCST|NOSIG)');
 
   RegExp TRENDTIME_RE = RegExp(r'^(FM|TL|AT)(\d{2})(\d{2}\s+)');
 
-  RegExp REMARK_RE = RegExp(r'^((RMK(S)?)|NOSPECI)');
+  RegExp REMARK_RE = RegExp(r'((RMK(S)?)|NOSPECI)');
 
 // Regular expressions for remark groups
   RegExp AUTO_RE = RegExp(r'^AO(\d)\s+');
