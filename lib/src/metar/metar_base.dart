@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:tuple/tuple.dart';
 import 'package:simple_logger/simple_logger.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:metar/src/units/direction.dart';
 import 'package:metar/src/metar/stations.dart';
@@ -167,6 +168,7 @@ class Metar {
   final _runway =
       <Tuple7<String, String, String, Length, String, Length, String>>[];
   final _weather = <Tuple5<String, String, String, String, String>>[];
+  final _trendWeather = <Tuple5<String, String, String, String, String>>[];
   final _sky = <Tuple3<String, Length, String>>[];
   final _trendSky = <Tuple3<String, Length, String>>[];
   List<String> _recent;
@@ -201,6 +203,7 @@ class Metar {
   final regex = METAR_REGEX();
   List<List> _bodyHandlers;
   List<List> _trendHandlers;
+  Map<String, dynamic> _map;
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
     logger.setLevel(Level.INFO);
@@ -217,7 +220,7 @@ class Metar {
 
     _body = dividedCode[0];
     _trend = dividedCode[1];
-    _rmk = dividedCode[2];
+    _rmk = dividedCode[2]?.replaceAll(RegExp(r'RMK\s|\sRMK|\sRMK\s'), '');
 
     _bodyList = _body.split(' ');
     if (_trend != null) {
@@ -245,6 +248,44 @@ class Metar {
     _createTrendHanldersListAndParse();
   }
 
+  static Future<Metar> mostRecentFromNOAA(String icaoStationCode) async {
+    final url =
+        'http://tgftp.nws.noaa.gov/data/observations/metar/stations/${icaoStationCode.toUpperCase()}.TXT';
+
+    final response = await http.get(url);
+    final data = response.body.split('\n');
+
+    final dateString = data[0].replaceAll('/', '-') + ':00';
+    final date = DateTime.parse(dateString);
+
+    return Metar(data[1], utcMonth: date.month, utcYear: date.year);
+  }
+
+  Future<String> toJson() async {
+    var station = await _station;
+    _map = <String, dynamic>{
+      'code': _code,
+      'type': _type,
+      'time': _time.toString(),
+      'station': station.toMap(),
+      'wind': <String, String>{
+        'direction': '${_windDir?.cardinalPoint}',
+        'speed': '${_windSpeed?.inKnot}',
+        'gust': '${_windGust?.inKnot}',
+        'directionFrom': '${_windDirFrom?.cardinalPoint}',
+        'directionTo': '${_windDirTo?.cardinalPoint}',
+      },
+      'visibility': <String, String>{
+        'prevailing': '${_vis?.inMeters}',
+        'minimum': '${_maxVis?.inKilometers}',
+        'minimumVisDirection': '${_maxVisDir?.cardinalPoint}',
+      },
+      'weather': <String, String>{},
+    };
+
+    return jsonEncode(_map);
+  }
+
   // Handlers for groups
   void _handleType(String group, {RegExpMatch match}) {
     /*
@@ -261,7 +302,7 @@ class Metar {
     Parse the station id group
 
     The following attributes are set
-      _stationID [String]   
+      _stationID [String]
       _station   [Station]
     */
     _stationID = group;
@@ -332,9 +373,9 @@ class Metar {
                 -> trend
 
     The following attributes are set
-      _windDir     [Direction]
-      _windSpeed   [Speed]
-      _windGust    [Speed]
+      _windDir/_trendWindDir      [Direction]
+      _windSpeed/_trendWindSpeed  [Speed]
+      _windGust/_trendWindGust    [Speed]
     */
     group.replaceAll('O', '0');
     String units, windDir, windSpeed, windGust;
@@ -401,7 +442,7 @@ class Metar {
                 -> trend
 
     The following attributes are set
-      _optionalVisibility   [Length]
+      _optionalVis/_trendOptionalVis   [Length]
     */
     if (section == 'body') {
       _optionalVis = Length.fromMiles(value: double.parse(group));
@@ -426,7 +467,7 @@ class Metar {
                 -> trend
 
     The following attributes are set
-      _vis    [Length]
+      _vis/_trendVis    [Length]
     */
     String units, vis, extreme, visExtreme, cavok;
     Length value;
@@ -543,17 +584,28 @@ class Metar {
     _runway.add(runway);
   }
 
-  void _handleWeather(String group, {RegExpMatch match}) {
+  void _handleWeather(
+    String group, {
+    RegExpMatch match,
+    String section = 'body',
+  }) {
     /*
     Parse the weather groups
 
+    params:
+      group:    [String] The individual group
+      match:    [RegExpMatch] The matcha of the regular expression
+      section:  [String] Section of Metar that will be parsed
+        options -> body
+                -> trend
+
     The following attributes are set
-      _weather          [List<Tuple5>]
-        * intensity     [String]
-        * description   [String]
-        * precipitation [String]
-        * obscuration   [String]
-        * other         [String]
+      _weather/_trendWeather  [List<Tuple5>]
+        * intensity           [String]
+        * description         [String]
+        * precipitation       [String]
+        * obscuration         [String]
+        * other               [String]
     */
 
     Tuple5<String, String, String, String, String> tuple;
@@ -566,15 +618,31 @@ class Metar {
     other = match.namedGroup('other');
 
     tuple = Tuple5(intensity, description, precipitation, obscuration, other);
-    _weather.add(tuple);
+
+    if (section == 'body') {
+      _weather.add(tuple);
+    } else {
+      _trendWeather.add(tuple);
+    }
   }
 
-  void _handleSky(String group, {RegExpMatch match}) {
+  void _handleSky(
+    String group, {
+    RegExpMatch match,
+    String section = 'body',
+  }) {
     /*
     Parse the sky groups
 
+    params:
+      group:    [String] The individual group
+      match:    [RegExpMatch] The matcha of the regular expression
+      section:  [String] Section of Metar that will be parsed
+        options -> body
+                -> trend
+
     The following attributes are set
-      _sky        [List<Tuple3>]
+      _sky/_trendSky        [List<Tuple3>]
         * cover   [String]
         * height  [Length]
         * cloud   [String]
@@ -594,7 +662,12 @@ class Metar {
     }
 
     sky = Tuple3(cover, heightVis, cloud);
-    _sky.add(sky);
+
+    if (section == 'body') {
+      _sky.add(sky);
+    } else {
+      _trendSky.add(sky);
+    }
   }
 
   void _handleTemperatures(String group, {RegExpMatch match}) {
@@ -709,13 +782,14 @@ class Metar {
     }
   }
 
-  void _parseGroups(List<String> groupList, List<List> handlers,
-      {String section = 'body'}) {
+  void _parseGroups(
+    List<String> groupList,
+    List<List> handlers, {
+    String section = 'body',
+  }) {
     Iterable<RegExpMatch> matches;
     groupList.forEach((group) {
       for (var handler in handlers) {
-        logger.info('${group}, MATCH: ${handler[0].hasMatch(group)}');
-        print(handler[0].stringMatch(group));
         if (handler[0].hasMatch(group) && !handler[2]) {
           matches = handler[0].allMatches(group);
           if (section == 'body') {
@@ -741,7 +815,12 @@ class Metar {
       [regex.WIND_RE, _handleWind, false],
       [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
       [regex.VISIBILITY_RE, _handleVisibility, false],
-      // [regex.WEATHER_RE]
+      [regex.WEATHER_RE, _handleWeather, false],
+      [regex.WEATHER_RE, _handleWeather, false],
+      [regex.WEATHER_RE, _handleWeather, false],
+      [regex.SKY_RE, _handleSky, false],
+      [regex.SKY_RE, _handleSky, false],
+      [regex.SKY_RE, _handleSky, false],
     ];
 
     _trendCode = _trendList[0];
@@ -761,6 +840,8 @@ class Metar {
       [regex.OPTIONALVIS_RE, _handleOptionalVisibility, false],
       [regex.VISIBILITY_RE, _handleVisibility, false],
       [regex.SECVISIBILITY_RE, _handleMaxVis, false],
+      [regex.RUNWAY_RE, _handleRunway, false],
+      [regex.RUNWAY_RE, _handleRunway, false],
       [regex.RUNWAY_RE, _handleRunway, false],
       [regex.WEATHER_RE, _handleWeather, false],
       [regex.WEATHER_RE, _handleWeather, false],
@@ -784,6 +865,7 @@ class Metar {
   int get month => _month;
   int get year => _year;
   String get code => _code;
+  String get rmk => _rmk;
   List<String> get bodyList => _bodyList;
   String get type => _type;
   DateTime get time => _time;
@@ -814,4 +896,6 @@ class Metar {
   Speed get trendWindSpeed => _trendWindSpeed;
   Speed get trendWindGust => _trendWindGust;
   Length get trendVisibility => _trendVis;
+  List<Tuple5> get trendWeather => _trendWeather;
+  List<Tuple3> get trendSky => _trendSky;
 }
