@@ -30,8 +30,13 @@ class Length implements Comparable<Length> {
   double get inKilometers => _returnValueOrZero(_length * _m_to_km);
   double get inMiles => _returnValueOrZero(_length * _m_to_mi);
   double get inFeet => _returnValueOrZero(_length * _m_to_feet);
-  double _returnValueOrZero(num value) =>
-      value >= 0.0 ? double.parse(value.toStringAsFixed(6)) : 0.0;
+  double _returnValueOrZero(num value) {
+    return value == null
+        ? null
+        : value >= 0.0
+            ? double.parse(value.toStringAsFixed(2))
+            : 0.0;
+  }
 
   /**
      * Compares this Length to [other], returning zero if the values are equal.

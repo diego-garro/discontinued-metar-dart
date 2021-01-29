@@ -45,7 +45,7 @@ class Temperature implements Comparable<Temperature> {
   double get inRankine => _returnValue(_celsius_to_rankine(_temperature));
   double get inRomer => _returnValue(_celsius_to_romer(_temperature));
 
-  double _returnValue(num value) => double.parse(value.toStringAsFixed(6));
+  double _returnValue(num value) => double.parse(value.toStringAsFixed(2));
 
   /**
      * Compares this Temperature to [other], returning zero if the values are equal.

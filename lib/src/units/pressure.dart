@@ -25,7 +25,7 @@ class Pressure implements Comparable<Pressure> {
   double get inInHg => _returnValue(_pressure);
   double get inHPa => _returnValue(_inHg_to_hPa * _pressure);
 
-  double _returnValue(num value) => double.parse(value.toStringAsFixed(6));
+  double _returnValue(num value) => double.parse(value.toStringAsFixed(2));
 
   /**
      * Compares this Pressure to [other], returning zero if the values are equal.

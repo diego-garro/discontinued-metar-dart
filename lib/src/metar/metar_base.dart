@@ -104,7 +104,7 @@ Length _handleRunwayRange(String range, String units) {
   if (units == 'feet') {
     return Length.fromFeet(value: double.tryParse(value));
   } else {
-    return Length.fromMeters(value: double.tryParse(value));
+    return Length.fromMeters(value: double.parse(value));
   }
 }
 
@@ -261,6 +261,52 @@ class Metar {
     return Metar(data[1], utcMonth: date.month, utcYear: date.year);
   }
 
+  Map<String, String> _runwayAsMap(int runwayIndex) {
+    return {
+      'name': _runway[runwayIndex].item1,
+      'rangeUnits': _runway[runwayIndex].item2,
+      'low': _runway[runwayIndex].item3,
+      'lowRange': '${_runway[runwayIndex].item4?.inMeters}',
+      'high': _runway[runwayIndex].item5,
+      'highRange': '${_runway[runwayIndex].item6?.inMeters}',
+      'trend': _runway[runwayIndex].item7
+    };
+  }
+
+  /// Returns the sky as a Map<String, String>
+  /// params:
+  ///   - layer [int] the index of a layer if present
+  ///   - section [String] the sky codes to returns
+  ///     - options: 'body', 'trend'
+  Map<String, String> _skyAsMap(int layer, {String section = 'body'}) {
+    if (section == 'body') {
+      return {
+        'cover': _sky[layer].item1,
+        'height': '${_sky[layer].item2?.inFeet}',
+        'cloud': _sky[layer].item3,
+      };
+    } else {
+      return {
+        'cover': _trendSky[layer].item1,
+        'height': '${_trendSky[layer].item2?.inFeet}',
+        'cloud': _trendSky[layer].item3,
+      };
+    }
+  }
+
+  /// Returns the runways with windshear reported is present
+  String _windshearRunway() {
+    if (_windshear.isNotEmpty) {
+      if (_windshear.length == 2) {
+        return _windshear[1];
+      } else {
+        return _windshear[2];
+      }
+    }
+    return null;
+  }
+
+  /// Returns the metar as json
   Future<String> toJson() async {
     var station = await _station;
     _map = <String, dynamic>{
@@ -268,19 +314,80 @@ class Metar {
       'type': _type,
       'time': _time.toString(),
       'station': station.toMap(),
-      'wind': <String, String>{
-        'direction': '${_windDir?.cardinalPoint}',
+      'wind': {
+        'direction': {
+          'degrees': '${_windDir?.directionInDegrees}',
+          'cardinalPoint': '${_windDir?.cardinalPoint}'
+        },
         'speed': '${_windSpeed?.inKnot}',
         'gust': '${_windGust?.inKnot}',
-        'directionFrom': '${_windDirFrom?.cardinalPoint}',
-        'directionTo': '${_windDirTo?.cardinalPoint}',
+        'variation': {
+          'from': {
+            'degrees': '${_windDirFrom?.directionInDegrees}',
+            'cardinalPoint': '${_windDirFrom?.cardinalPoint}'
+          },
+          'to': {
+            'degrees': '${_windDirTo?.directionInDegrees}',
+            'cardinalPoint': '${_windDirTo?.cardinalPoint}'
+          },
+        },
       },
-      'visibility': <String, String>{
+      'visibility': <String, dynamic>{
         'prevailing': '${_vis?.inMeters}',
         'minimum': '${_maxVis?.inKilometers}',
         'minimumVisDirection': '${_maxVisDir?.cardinalPoint}',
+        'cavok': _cavok,
+        'runway': <String, Map<String, String>>{
+          'first': _runway.isNotEmpty ? _runwayAsMap(0) : null,
+          'second': _runway.length > 1 ? _runwayAsMap(1) : null,
+          'third': _runway.length > 2 ? _runwayAsMap(2) : null,
+        }
       },
-      'weather': <String, String>{},
+      'weather': <String, List>{
+        'first': _weather.isNotEmpty ? _weather[0].toList() : null,
+        'second': _weather.length > 1 ? _weather[1].toList() : null,
+        'third': _weather.length > 2 ? _weather[2].toList() : null
+      },
+      'sky': <String, Map<String, String>>{
+        'first': _sky.isNotEmpty ? _skyAsMap(0) : null,
+        'second': _sky.length > 1 ? _skyAsMap(1) : null,
+        'third': _sky.length > 2 ? _skyAsMap(2) : null,
+        'fourth': _sky.length > 3 ? _skyAsMap(3) : null,
+      },
+      'temperatures': {
+        'absolute': '${_temp?.inCelsius}',
+        'dewpoint': '${_dewpt?.inCelsius}',
+      },
+      'pressure': '${_press?.inHPa}',
+      'suplementary': <String, dynamic>{
+        'recentWeather': '$_recent',
+        'windshear': <String, String>{
+          'runway': '${_windshearRunway()}',
+        },
+      },
+      'remark': _rmk,
+      'trend': <String, dynamic>{
+        'code': _trendCode,
+        'wind': <String, dynamic>{
+          'direction': {
+            'degrees': '${_trendWindDir?.directionInDegrees}',
+            'cardinalPoint': '${_trendWindDir?.cardinalPoint}',
+          },
+          'speed': '${_trendWindSpeed?.inKnot}',
+          'gust': '${_trendWindGust?.inKnot}',
+        },
+        'weather': <String, List>{
+          'first': _trendWeather.isNotEmpty ? _trendWeather[0].toList() : null,
+          'second': _trendWeather.length > 1 ? _trendWeather[1].toList() : null,
+          'third': _trendWeather.length > 2 ? _trendWeather[2].toList() : null,
+        },
+        'sky': <String, Map<String, String>>{
+          'first': _trendSky.isNotEmpty ? _skyAsMap(0, section: 'trend') : null,
+          'second':
+              _trendSky.length > 1 ? _skyAsMap(1, section: 'trend') : null,
+          'third': _trendSky.length > 2 ? _skyAsMap(2, section: 'trend') : null,
+        }
+      }
     };
 
     return jsonEncode(_map);
@@ -532,7 +639,7 @@ class Metar {
     Parse the runway visual range group
 
     The following attributes are set
-      _runway         [List<Tuple7>]
+      _runway         Tuple7<String, String, String, Length, String, Length, String>
         * name        [String]
         * rangeUnits  [String]
         * low         [String]
@@ -541,7 +648,6 @@ class Metar {
         * highRange   [Length]
         * trend       [String]
     */
-
     Tuple7<String, String, String, Length, String, Length, String> runway;
     String name, units, low, high, trend;
 
@@ -559,15 +665,17 @@ class Metar {
       units = 'meters';
     }
 
-    // setting if the low range is out of medition
-    low = _handleLowHighRunway(low);
     // setting the low range
     var lowRange = _handleRunwayRange(low, units);
 
-    // setting if the high range is out of medition
-    high = _handleLowHighRunway(high);
+    // setting if the low range is out of medition
+    low = _handleLowHighRunway(low);
+
     // setting the high range
     var highRange = _handleRunwayRange(high, units);
+
+    // setting if the high range is out of medition
+    high = _handleLowHighRunway(high);
 
     // setting the trend
     trend ??= trend = '';
@@ -823,9 +931,11 @@ class Metar {
       [regex.SKY_RE, _handleSky, false],
     ];
 
-    _trendCode = _trendList[0];
+    _trendCode = _trendList == null ? null : _trendList[0];
 
-    _parseGroups(_trendList.sublist(1), _trendHandlers, section: 'trend');
+    if (_trendList != null) {
+      _parseGroups(_trendList.sublist(1), _trendHandlers, section: 'trend');
+    }
   }
 
   void _createBodyHandlersListAndParse() {
