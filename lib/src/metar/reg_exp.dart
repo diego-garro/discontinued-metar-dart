@@ -9,14 +9,14 @@ class METAR_REGEX {
 
   RegExp STATION_RE = RegExp(r'^([A-Z][A-Z0-9]{3})$');
 
-  RegExp TIME_RE = RegExp(r'^(\d{6})Z?$');
+  RegExp TIME_RE = RegExp(r'^\d{6}Z$');
 
   RegExp MODIFIER_RE = RegExp(r'^(AUTO|FINO|NIL|TEST|CORR?|RTD|CC[A-G])$');
 
   RegExp WIND_RE = RegExp(
-      r'^(?<dir>[\d]{3}|///|MMM|VRB|P)(?<speed>[\d]{2}|[/M]{2})(G(?<gust>\d{2}|[/M{2}]))?(?<units>KTS?|KT|MPS)$');
+      r'^(?<dir>[\d]{3}|///|MMM|VRB|P)(?<speed>[\d]{2}|[/M]{2})(G(?<gust>\d{2}|[/M{2}]))?(?<units>KT|MPS)$');
 
-  RegExp WINDVARIATION_RE = RegExp(r'((?<from>\d{3})V(?<to>\d{3}))$');
+  RegExp WINDVARIATION_RE = RegExp(r'^((?<from>\d{3})V(?<to>\d{3}))$');
 
   RegExp OPTIONALVIS_RE = RegExp(r'^\d$');
 
@@ -41,7 +41,7 @@ class METAR_REGEX {
       RegExp(r'^(?<units>A|Q|QNH)?(?<press>\d{4}|\//\//)(?<units2>INS)?$');
 
   RegExp RECENT_RE = RegExp(
-      r'^RE(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?(?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)?(?<obsc>BR|FG|VA|DU|SA|HZ|PY)?(?<other>PO|SQ|FC|SS|DS)?');
+      r'^RE(?<descrip>MI|PR|BC|DR|BL|SH|TS|FZ)?(?<precip>DZ|RA|SN|SG|IC|PL|GR|GS|UP)?(?<obsc>BR|FG|VA|DU|SA|HZ|PY)?(?<other>PO|SQ|FC|SS|DS)?$');
 
   RegExp WINDSHEAR_PREFIX_RE = RegExp(r'^(?<prefix>WS|ALL)$');
 

@@ -15,6 +15,8 @@ import 'package:metar/src/units/pressure.dart';
 import 'package:metar/src/units/speed.dart';
 import 'package:metar/src/units/temperature.dart';
 
+import 'package:metar/src/database/db_connection.dart';
+
 List<String> _divideMetarCode(String code) {
   String body, rmk, trend;
   final regexp = METAR_REGEX();
@@ -83,6 +85,23 @@ Future<Station> _getStationFromFile(String stationCode) async {
   );
 }
 
+Future<Station> _getStation(String stationICAO) async {
+  final conn = PostgresConnection();
+
+  final result = await conn.queryAsList(stationICAO);
+
+  return Station(
+    result[0].trim(),
+    result[1],
+    result[2],
+    result[3],
+    result[4],
+    result[5],
+    result[6],
+    result[7],
+  );
+}
+
 String _handleLowHighRunway(String range) {
   range ??= range = '';
 
@@ -129,6 +148,8 @@ class ParserError implements Exception {
   ParserError(String message) {
     _message += message;
   }
+
+  String get message => _message;
 
   @override
   String toString() {
@@ -413,7 +434,8 @@ class Metar {
       _station   [Station]
     */
     _stationID = group;
-    _station = _getStationFromFile(_stationID);
+    _station = _getStation(_stationID);
+    // _station = _getStationFromFile(_stationID);
     // print(_station);
     // print('Nombre de la estación: ${_station.name}');
     // print('Posición: ${_station.longitude.inRadians}');
