@@ -50,40 +50,40 @@ List<String> _divideMetarCode(String code) {
       rmk = code.substring(rmkIndex);
     }
   }
-  logger.info('LOGGER INFO: $body, $trend, $rmk');
+  //logger.info('LOGGER INFO: $body, $trend, $rmk');
   return <String>[body, trend, rmk];
 }
 
-Future<Station> _getStationFromFile(String stationCode) async {
-  var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
-  var myFile = File.fromUri(dirName);
-  var linesList = await myFile
-      .openRead()
-      .transform(utf8.decoder)
-      .transform(LineSplitter())
-      .toList();
-  List<String> stationAttributes;
-  for (var line in linesList) {
-    stationAttributes = line.split(',');
-    if (stationAttributes[1] == stationCode) {
-      // print('From the function: $stationCode');
-      // print(line);
-      // print('stationattributes: $stationAttributes');
-      break;
-    }
-  }
+// Future<Station> _getStationFromFile(String stationCode) async {
+//   var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
+//   var myFile = File.fromUri(dirName);
+//   var linesList = await myFile
+//       .openRead()
+//       .transform(utf8.decoder)
+//       .transform(LineSplitter())
+//       .toList();
+//   List<String> stationAttributes;
+//   for (var line in linesList) {
+//     stationAttributes = line.split(',');
+//     if (stationAttributes[1] == stationCode) {
+//       // print('From the function: $stationCode');
+//       // print(line);
+//       // print('stationattributes: $stationAttributes');
+//       break;
+//     }
+//   }
 
-  return Station(
-    stationAttributes[0].trim(),
-    stationAttributes[1],
-    stationAttributes[2],
-    stationAttributes[3],
-    stationAttributes[4],
-    stationAttributes[5],
-    stationAttributes[6],
-    stationAttributes[7],
-  );
-}
+//   return Station(
+//     stationAttributes[0].trim(),
+//     stationAttributes[1],
+//     stationAttributes[2],
+//     stationAttributes[3],
+//     stationAttributes[4],
+//     stationAttributes[5],
+//     stationAttributes[6],
+//     stationAttributes[7],
+//   );
+// }
 
 Future<Station> _getStation(String stationICAO) async {
   final conn = PostgresConnection();
@@ -97,7 +97,7 @@ Future<Station> _getStation(String stationICAO) async {
     result[3],
     result[4],
     result[5],
-    result[6],
+    result[6].toString(),
     result[7],
   );
 }
@@ -303,13 +303,13 @@ class Metar {
     if (section == 'body') {
       return {
         'cover': _sky[layer].item1,
-        'height': '${_sky[layer].item2?.inFeet}',
+        'height': '${_sky[layer].item2?.inMeters}',
         'cloud': _sky[layer].item3,
       };
     } else {
       return {
         'cover': _trendSky[layer].item1,
-        'height': '${_trendSky[layer].item2?.inFeet}',
+        'height': '${_trendSky[layer].item2?.inMeters}',
         'cloud': _trendSky[layer].item3,
       };
     }
@@ -335,7 +335,10 @@ class Metar {
       'type': _type,
       'time': _time.toString(),
       'station': station.toMap(),
-      'wind': {
+      'wind': <String, dynamic>{
+        'units': {
+          'speed': 'knot',
+        },
         'direction': {
           'degrees': '${_windDir?.directionInDegrees}',
           'cardinalPoint': '${_windDir?.cardinalPoint}'
@@ -354,8 +357,9 @@ class Metar {
         },
       },
       'visibility': <String, dynamic>{
+        'units': 'meters',
         'prevailing': '${_vis?.inMeters}',
-        'minimum': '${_maxVis?.inKilometers}',
+        'minimum': '${_maxVis?.inMeters}',
         'minimumVisDirection': '${_maxVisDir?.cardinalPoint}',
         'cavok': _cavok,
         'runway': <String, Map<String, String>>{
@@ -370,16 +374,20 @@ class Metar {
         'third': _weather.length > 2 ? _weather[2].toList() : null
       },
       'sky': <String, Map<String, String>>{
+        'units': {
+          'height': 'meters',
+        },
         'first': _sky.isNotEmpty ? _skyAsMap(0) : null,
         'second': _sky.length > 1 ? _skyAsMap(1) : null,
         'third': _sky.length > 2 ? _skyAsMap(2) : null,
         'fourth': _sky.length > 3 ? _skyAsMap(3) : null,
       },
       'temperatures': {
+        'units': 'celcius',
         'absolute': '${_temp?.inCelsius}',
         'dewpoint': '${_dewpt?.inCelsius}',
       },
-      'pressure': '${_press?.inHPa}',
+      'pressure': {'units': 'hectoPascal', 'value': '${_press?.inHPa}'},
       'suplementary': <String, dynamic>{
         'recentWeather': '$_recent',
         'windshear': <String, String>{
@@ -390,6 +398,9 @@ class Metar {
       'trend': <String, dynamic>{
         'code': _trendCode,
         'wind': <String, dynamic>{
+          'units': {
+            'speed': 'knot',
+          },
           'direction': {
             'degrees': '${_trendWindDir?.directionInDegrees}',
             'cardinalPoint': '${_trendWindDir?.cardinalPoint}',
@@ -403,6 +414,9 @@ class Metar {
           'third': _trendWeather.length > 2 ? _trendWeather[2].toList() : null,
         },
         'sky': <String, Map<String, String>>{
+          'units': {
+            'height': 'meters',
+          },
           'first': _trendSky.isNotEmpty ? _skyAsMap(0, section: 'trend') : null,
           'second':
               _trendSky.length > 1 ? _skyAsMap(1, section: 'trend') : null,
