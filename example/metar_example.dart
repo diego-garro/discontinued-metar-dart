@@ -9,10 +9,9 @@ void main() async {
   //     'CYQU 161518Z 05013KT 1 1/4SM -SN VV009 M02/M03 A2993 RMK SN8 SLP168';
   var metar = Metar(metarcode);
   // var metar = Metar('');
-  var metarStation = await metar.station;
 
-  print('Elevation of station: ${metarStation.elevation}');
-  print('Name of station: ${metarStation.name}');
+  print('Elevation of station: ${metar.station.elevation}');
+  print('Name of station: ${metar.station.name}');
   print('Code: ${metar.code}');
   print('BodyList: ${metar.bodyList}');
   print('Month: ${metar.month}');

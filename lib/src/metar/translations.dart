@@ -19,7 +19,7 @@ class SKY_TRANSLATIONS {
     'ACC': 'altocumulus castellanus',
     'ACSL': 'standing lenticulas altocumulus',
     'AS': 'altostratus',
-    'CB': 'cumulonimus',
+    'CB': 'cumulonimbus',
     'CBMAM': 'cumulonimbus mammatus',
     'CCSL': 'standing lenticular cirrocumulus',
     'CC': 'cirrocumulus',

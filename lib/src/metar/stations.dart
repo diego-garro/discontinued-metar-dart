@@ -51,8 +51,8 @@ class Station {
       'synop': _synop.trim(),
       'elevation': _elev,
       'country': _countries[_country],
-      'latitude': _lat,
-      'longitude': _long,
+      'latitude': '${_position.latitude.inDegrees}',
+      'longitude': '${_position.longitude.inDegrees}',
     };
   }
 

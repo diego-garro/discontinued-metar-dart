@@ -26,6 +26,7 @@ class Direction {
   };
   Angle _direction;
   String _directionStr;
+  bool _variable = false;
 
   Direction.fromDegrees({String value = '000'}) {
     _direction = Angle.fromDegrees(value: double.parse(value));
@@ -35,6 +36,9 @@ class Direction {
     if (_compassDirs.keys.toList().contains(value)) {
       _direction = Angle.fromDegrees(value: _compassDirs[value]);
     } else {
+      if (value == 'VRB') {
+        _variable = true;
+      }
       _direction = Angle.fromDegrees(value: 0.0);
     }
     _directionStr = _cardinalPoint(value);
@@ -44,6 +48,12 @@ class Direction {
   double get directionInRadians => _returnValue('radians');
   double get directionInGradians => _returnValue('gradians');
   String get cardinalPoint => _directionStr;
+  String get variable {
+    if (_variable) {
+      return 'variable';
+    }
+    return 'not variable';
+  }
 
   String _cardinalPoint(String value) {
     String point;

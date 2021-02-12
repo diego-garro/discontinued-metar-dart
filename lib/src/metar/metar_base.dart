@@ -1,5 +1,4 @@
 // import 'package:path/path.dart' show dirname;
-import 'dart:io';
 import 'dart:convert';
 
 import 'package:tuple/tuple.dart';
@@ -15,7 +14,10 @@ import 'package:metar/src/units/pressure.dart';
 import 'package:metar/src/units/speed.dart';
 import 'package:metar/src/units/temperature.dart';
 
-import 'package:metar/src/database/db_connection.dart';
+// import 'package:metar/src/database/db_connection.dart';
+import 'package:metar/src/utils/capitalize_string.dart';
+import 'package:metar/src/metar/translations.dart';
+import 'package:metar/src/database/stations.dart';
 
 List<String> _divideMetarCode(String code) {
   String body, rmk, trend;
@@ -50,54 +52,21 @@ List<String> _divideMetarCode(String code) {
       rmk = code.substring(rmkIndex);
     }
   }
-  //logger.info('LOGGER INFO: $body, $trend, $rmk');
+  // logger.info('LOGGER INFO: $body, $trend, $rmk');
   return <String>[body, trend, rmk];
 }
 
-// Future<Station> _getStationFromFile(String stationCode) async {
-//   var dirName = Platform.script.resolve('../lib/src/metar/stations.csv');
-//   var myFile = File.fromUri(dirName);
-//   var linesList = await myFile
-//       .openRead()
-//       .transform(utf8.decoder)
-//       .transform(LineSplitter())
-//       .toList();
-//   List<String> stationAttributes;
-//   for (var line in linesList) {
-//     stationAttributes = line.split(',');
-//     if (stationAttributes[1] == stationCode) {
-//       // print('From the function: $stationCode');
-//       // print(line);
-//       // print('stationattributes: $stationAttributes');
-//       break;
-//     }
-//   }
-
-//   return Station(
-//     stationAttributes[0].trim(),
-//     stationAttributes[1],
-//     stationAttributes[2],
-//     stationAttributes[3],
-//     stationAttributes[4],
-//     stationAttributes[5],
-//     stationAttributes[6],
-//     stationAttributes[7],
-//   );
-// }
-
-Future<Station> _getStation(String stationICAO) async {
-  final conn = PostgresConnection();
-
-  final result = await conn.queryAsList(stationICAO);
+Station _getStation(String stationICAO) {
+  final result = getStation(stationICAO);
 
   return Station(
-    result[0].trim(),
+    result[0],
     result[1],
     result[2],
     result[3],
     result[4],
     result[5],
-    result[6].toString(),
+    result[6],
     result[7],
   );
 }
@@ -165,7 +134,7 @@ class Metar {
   bool _correction = false;
   String _mod = 'AUTO';
   String _stationID;
-  Future<Station> _station;
+  Station _station;
   DateTime _time;
   int _cycle;
   Direction _windDir;
@@ -225,6 +194,7 @@ class Metar {
   List<List> _bodyHandlers;
   List<List> _trendHandlers;
   Map<String, dynamic> _map;
+  String _string = '### BODY ###\n';
 
   Metar(String metarcode, {int utcMonth, int utcYear}) {
     logger.setLevel(Level.INFO);
@@ -327,14 +297,13 @@ class Metar {
     return null;
   }
 
-  /// Returns the metar as json
-  Future<String> toJson() async {
-    var station = await _station;
+  /// Returns the metar as a json
+  String toJson() {
     _map = <String, dynamic>{
       'code': _code,
       'type': _type,
       'time': _time.toString(),
-      'station': station.toMap(),
+      'station': _station.toMap(),
       'wind': <String, dynamic>{
         'units': {
           'speed': 'knot',
@@ -428,6 +397,11 @@ class Metar {
     return jsonEncode(_map);
   }
 
+  @override
+  String toString() {
+    return _string;
+  }
+
   // Handlers for groups
   void _handleType(String group, {RegExpMatch match}) {
     /*
@@ -437,6 +411,8 @@ class Metar {
       _type    [String]
     */
     _type = group;
+    _string += '--- Type ---\n'
+        ' * ${_type}\n';
   }
 
   void _handleStation(String group, {RegExpMatch match}) {
@@ -449,10 +425,16 @@ class Metar {
     */
     _stationID = group;
     _station = _getStation(_stationID);
-    // _station = _getStationFromFile(_stationID);
-    // print(_station);
-    // print('Nombre de la estación: ${_station.name}');
-    // print('Posición: ${_station.longitude.inRadians}');
+    final stationMap = _station.toMap();
+    _string += '--- Station ---\n'
+        ' * Name: ${stationMap['name']}\n'
+        ' * ICAO: ${stationMap['icao']}\n'
+        ' * IATA: ${stationMap['iata']}\n'
+        ' * SYNOP: ${stationMap['synop']}\n'
+        ' * Longitude: ${stationMap['longitude']}\n'
+        ' * Latitude: ${stationMap['latitude']}\n'
+        ' * Elevation: ${stationMap['elevation']}\n'
+        ' * Country: ${stationMap['country']}\n';
   }
 
   void _handleCorrection(String group, {RegExpMatch match}) {
@@ -464,6 +446,7 @@ class Metar {
     */
     if (group != null) {
       _correction = true;
+      _string += '--- Correction ---\n';
     }
   }
 
@@ -482,6 +465,8 @@ class Metar {
     final min = int.parse(group.substring(4, 6));
 
     _time = DateTime(_year, _month, day, hour, min);
+    _string += '--- Time ---\n'
+        ' * ${_time}\n';
   }
 
   void _handleModifier(String group, {RegExpMatch match}) {
@@ -546,14 +531,25 @@ class Metar {
       gustValue = Speed.fromKnot(value: double.parse(windGust));
     }
 
+    void stringHelper(Direction dir, Speed speed, Speed gust) {
+      _string += '--- Wind ---\n'
+          ' * Direction:\n'
+          '   - Degrees: ${dir.variable == 'not variable' ? dir.directionInDegrees : 'Variable'}\n'
+          '   - Cardinal point: ${dir.variable == 'not variable' ? dir.cardinalPoint : 'Variable'}\n'
+          ' * Speed: ${speed.inKnot} knots\n'
+          ' * Gust: ${gust != null ? gust.inKnot : 0.0} knots\n';
+    }
+
     if (section == 'body') {
       _windDir = dirValue;
       _windSpeed = speedValue;
       _windGust = gustValue;
+      stringHelper(_windDir, _windSpeed, _windGust);
     } else {
       _trendWindDir = dirValue;
       _trendWindSpeed = speedValue;
       _trendWindGust = gustValue;
+      stringHelper(_trendWindDir, _trendWindSpeed, _trendWindGust);
     }
   }
 
@@ -567,6 +563,13 @@ class Metar {
     */
     _windDirFrom = Direction.fromDegrees(value: match.namedGroup('from'));
     _windDirTo = Direction.fromDegrees(value: match.namedGroup('to'));
+    _string += ' * Variation:\n'
+        '   - From:\n'
+        '     > Degrees: ${_windDirFrom.directionInDegrees}\n'
+        '     > Cardinal point: ${_windDirFrom.cardinalPoint}\n'
+        '   - To:\n'
+        '     > Degrees: ${_windDirTo.directionInDegrees}\n'
+        '     > Cardinal point: ${_windDirTo.cardinalPoint}\n';
   }
 
   void _handleOptionalVisibility(
@@ -651,10 +654,18 @@ class Metar {
       }
     }
 
+    void stringHelper(Length vis) {
+      _string += '--- Visibility ---\n'
+          ' * Prevailing: ${vis.inMeters} meters\n'
+          ' * ${_cavok ? 'CAVOK' : 'No CAVOK'}\n';
+    }
+
     if (section == 'body') {
       _vis = value;
+      stringHelper(_vis);
     } else {
       _trendVis = value;
+      stringHelper(_trendVis);
     }
   }
 
@@ -668,6 +679,8 @@ class Metar {
     */
     _maxVis = Length.fromMeters(value: double.parse(match.namedGroup('vis')));
     _maxVisDir = Direction.fromUndefined(value: match.namedGroup('dir'));
+    _string +=
+        ' * Secondary: ${_maxVis.inMeters} meters to ${_maxVisDir.cardinalPoint}\n';
   }
 
   void _handleRunway(String group, {RegExpMatch match}) {
@@ -724,8 +737,22 @@ class Metar {
     }
 
     runway = Tuple7(
-        _handleRunwayName(name), units, low, lowRange, high, highRange, trend);
+      _handleRunwayName(name),
+      units,
+      low,
+      lowRange,
+      high,
+      highRange,
+      trend,
+    );
     _runway.add(runway);
+
+    if (_runway.last == _runway[0]) {
+      _string += ' * Runway:\n';
+    }
+    _string += '   - Name: ${_runway.last.item1}\n'
+        '     > Low range: ${_runway.last.item4.inMeters} meters\n'
+        '     > High range: ${_runway.last.item6.inMeters} meters\n';
   }
 
   void _handleWeather(
@@ -763,10 +790,31 @@ class Metar {
 
     tuple = Tuple5(intensity, description, precipitation, obscuration, other);
 
+    void stringHelper(Tuple5 weather) {
+      final trans = SKY_TRANSLATIONS();
+
+      if ((_weather.isNotEmpty && weather == _weather[0]) ||
+          (_trendWeather.isNotEmpty && weather == _trendWeather[0])) {
+        _string += '--- Weather ---\n';
+      }
+
+      final s = '${weather.item1 != null ? trans.WEATHER_INT[weather.item1] : ''} '
+              '${weather.item2 != null ? trans.WEATHER_DESC[weather.item2] : ''} '
+              '${weather.item3 != null ? trans.WEATHER_PREC[weather.item3] : ''} '
+              '${weather.item4 != null ? trans.WEATHER_OBSC[weather.item4] : ''} '
+              '${weather.item5 != null ? trans.WEATHER_OTHER[weather.item5] : ''}'
+          .replaceFirst(RegExp(r'\s{2,}'), ' ')
+          .trimLeft();
+
+      _string += ' * ' + capitalize(s) + '\n';
+    }
+
     if (section == 'body') {
       _weather.add(tuple);
+      stringHelper(_weather.last);
     } else {
       _trendWeather.add(tuple);
+      stringHelper(_trendWeather.last);
     }
   }
 
@@ -807,10 +855,28 @@ class Metar {
 
     sky = Tuple3(cover, heightVis, cloud);
 
+    void stringHelper(Tuple3 layer) {
+      final trans = SKY_TRANSLATIONS();
+
+      if (layer == _sky[0]) {
+        _string += '--- Sky ---\n';
+      }
+
+      final s = '${trans.SKY_COVER[layer.item1]} at '
+              '${layer.item2.inFeet} feet '
+              '${layer.item3 != null ? 'of ${trans.CLOUD_TYPE[layer.item3]}' : ''}'
+          .replaceFirst(RegExp(r'\s{2,}'), ' ')
+          .trimLeft();
+
+      _string += ' * ' + capitalize(s) + '\n';
+    }
+
     if (section == 'body') {
       _sky.add(sky);
+      stringHelper(_sky.last);
     } else {
       _trendSky.add(sky);
+      stringHelper(_trendSky.last);
     }
   }
 
@@ -837,6 +903,10 @@ class Metar {
     if (regex.hasMatch(dewpt)) {
       _dewpt = _defineTemperature(dsign, dewpt);
     }
+
+    _string += '--- Temperatures ---\n'
+        ' * Absolute: ${_temp != null ? '${_temp.inCelsius}°C' : 'undefined'}\n'
+        ' * Dewpoint: ${_dewpt != null ? '${_dewpt.inCelsius}°C' : 'undefined'}\n';
   }
 
   void _handlePressure(String group, {RegExpMatch match}) {
@@ -871,6 +941,9 @@ class Metar {
         _press = Pressure.fromMb(value: pressDouble);
       }
     }
+
+    _string += '--- Pressure ---\n'
+        ' * ${_press.inHPa} hPa\n';
   }
 
   void _handleRecent(String group, {RegExpMatch match}) {
@@ -892,6 +965,16 @@ class Metar {
     other = match.namedGroup('other');
 
     _recent = <String>[description, precipitation, obscuration, other];
+
+    final trans = SKY_TRANSLATIONS();
+    final s = '${_recent[0] != null ? trans.WEATHER_DESC[_recent[0]] : ''} '
+            '${_recent[1] != null ? trans.WEATHER_PREC[_recent[1]] : ''} '
+            '${_recent[2] != null ? trans.WEATHER_OBSC[_recent[2]] : ''} '
+            '${_recent[3] != null ? trans.WEATHER_OTHER[_recent[3]] : ''} '
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trimLeft();
+
+    _string += '--- Recent weather ---\n * ' + capitalize(s) + '\n';
   }
 
   void _handleWindShearPrefix(String group, {RegExpMatch match}) {
@@ -924,6 +1007,9 @@ class Metar {
     } else {
       _windshear.add(_handleRunwayName(name));
     }
+
+    _string += '--- Windshear ---\n'
+        ' * ${_windshear[1] == 'ALL' ? 'All runways' : 'Runway ${_windshear[1]}'}\n';
   }
 
   void _parseGroups(
@@ -968,6 +1054,8 @@ class Metar {
     ];
 
     _trendCode = _trendList == null ? null : _trendList[0];
+
+    _string += '\n### TREND: ${_trendCode} ###\n';
 
     if (_trendList != null) {
       _parseGroups(_trendList.sublist(1), _trendHandlers, section: 'trend');
@@ -1017,7 +1105,7 @@ class Metar {
   DateTime get time => _time;
   bool get correction => _correction;
   String get stationID => _stationID;
-  Future<Station> get station async => await _station;
+  Station get station => _station;
   String get modifier => _mod;
   Direction get windDir => _windDir;
   Speed get windSpeed => _windSpeed;

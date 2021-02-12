@@ -4,7 +4,11 @@ class PostgresConnection {
   PostgreSQLConnection _connection;
 
   PostgresConnection() {
-    _connection = PostgreSQLConnection('127.0.0.1', 5432, 'test_db',
+    // final hostIP = '192.168.1.9';
+    final hostIP = '127.0.0.1';
+    final port = 5432;
+    final dbName = 'test';
+    _connection = PostgreSQLConnection(hostIP, port, dbName,
         username: 'postgres', password: 'postgres');
   }
 
