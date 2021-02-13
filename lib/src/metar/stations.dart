@@ -59,7 +59,7 @@ class Station {
   // double get latitude => double.parse(_lat);
   // double get longitude => double.parse(_long);
   int get elevation => int.parse(_elev);
-  String get country => _country;
+  String get country => _countries[_country];
   Position get position => _position;
   Angle get longitude => _position.longitude;
   Angle get latitude => _position.latitude;

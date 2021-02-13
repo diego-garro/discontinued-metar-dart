@@ -1115,7 +1115,7 @@ class Metar {
   Length get visibility => _vis;
   Length get maxVisibility => _maxVis;
   Direction get maxVisibilityDirection => _maxVisDir;
-  List get runway => _runway;
+  List<Tuple7> get runway => _runway;
   List<Tuple5> get weather => _weather;
   List<Tuple3> get sky => _sky;
   Temperature get temperature => _temp;
