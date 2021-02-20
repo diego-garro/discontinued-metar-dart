@@ -1117,7 +1117,7 @@ class Metar {
   Direction get maxVisibilityDirection => _maxVisDir;
   List<Tuple7> get runway => _runway;
   List<Tuple5> get weather => _weather;
-  List<Tuple3> get sky => _sky;
+  List<Tuple3<String, Length, String>> get sky => _sky;
   Temperature get temperature => _temp;
   Temperature get dewPointTemperature => _dewpt;
   Pressure get pressure => _press;
