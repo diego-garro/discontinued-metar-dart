@@ -1130,6 +1130,7 @@ class Metar {
   Speed get trendWindSpeed => _trendWindSpeed;
   Speed get trendWindGust => _trendWindGust;
   Length get trendVisibility => _trendVis;
-  List<Tuple5> get trendWeather => _trendWeather;
-  List<Tuple3> get trendSky => _trendSky;
+  List<Tuple5<String, String, String, String, String>> get trendWeather =>
+      _trendWeather;
+  List<Tuple3<String, Length, String>> get trendSky => _trendSky;
 }
