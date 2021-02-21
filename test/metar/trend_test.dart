@@ -6,7 +6,7 @@ import 'package:metar/metar.dart';
 void main() {
   final codeWind =
       'TFFF 201930Z AUTO 10014KT 9999 FEW045 SCT066 28/20 Q1014 TEMPO 10017G28KT';
-  var metarWind = Metar(codeWind);
+  final metarWind = Metar(codeWind);
 
   group('String', () {
     test('Test the trend code of METAR', () {
@@ -37,9 +37,9 @@ void main() {
     });
   });
 
-  var codeOther =
+  final codeOther =
       'TFFF 200830Z AUTO 11012KT 9999 FEW035 24/21 Q1016 TEMPO 4900 -SHRA BKN022TCU';
-  var metarOther = Metar(codeOther);
+  final metarOther = Metar(codeOther);
 
   group('String', () {
     test('Test the cover of cloud layer of trend', () {
