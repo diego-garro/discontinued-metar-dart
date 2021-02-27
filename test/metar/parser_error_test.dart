@@ -1,3 +1,4 @@
+import 'package:metar/src/utils/parser_error.dart';
 import 'package:test/test.dart';
 
 import 'package:metar/metar.dart';

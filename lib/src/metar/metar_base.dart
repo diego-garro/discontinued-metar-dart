@@ -15,6 +15,7 @@ import 'package:metar/src/units/speed.dart';
 import 'package:metar/src/units/temperature.dart';
 
 // import 'package:metar/src/database/db_connection.dart';
+import 'package:metar/src/utils/parser_error.dart';
 import 'package:metar/src/utils/capitalize_string.dart';
 import 'package:metar/src/metar/translations.dart';
 import 'package:metar/src/database/stations.dart';
@@ -23,7 +24,7 @@ List<String> _divideMetarCode(String code) {
   String body, rmk, trend;
   final regexp = METAR_REGEX();
   int rmkIndex, trendIndex;
-  final logger = SimpleLogger();
+  //final logger = SimpleLogger();
 
   if (regexp.TREND_RE.hasMatch(code)) {
     trendIndex = regexp.TREND_RE.firstMatch(code).start;
@@ -109,21 +110,6 @@ String _handleRunwayName(String name) {
       .replaceFirst('L', ' left')
       .replaceFirst('R', ' right')
       .replaceFirst('C', ' center');
-}
-
-class ParserError implements Exception {
-  String _message = 'ParserError: ';
-
-  ParserError(String message) {
-    _message += message;
-  }
-
-  String get message => _message;
-
-  @override
-  String toString() {
-    return _message;
-  }
 }
 
 class Metar {
